@@ -2,8 +2,31 @@
 const OFFSET_MINUTES = (typeof CONFIG !== 'undefined' && CONFIG.OFFSET_MINUTES) || 5;
 const OFFSET_60_MINUTES = (typeof CONFIG !== 'undefined' && CONFIG.OFFSET_60_MINUTES) || 60;
 const TIMETRACKING_BASE_URL = (typeof CONFIG !== 'undefined' && CONFIG.TIMETRACKING_BASE_URL) || 'https://blueship.co-assign.com/worksheet';
-const DEBUG_MODE = true; // デバッグモード（trueにするとログが出力される） - TODO: 問題解決後にfalseに戻す
-var display_ready = false;
+const DEBUG_MODE = false; // デバッグモード（trueにするとログが出力される）
+let display_ready = false;
+
+// UI色定数
+const COLORS = {
+  PRIMARY: '#2693FF',
+  PRIMARY_HOVER: '#1a75d1',
+  PRIMARY_ACTIVE: '#004080',
+  ERROR: '#ff4d4f',
+  WARNING: '#fd7e00',
+  INFO: '#2196f3',
+  LINK: '#0066cc'
+};
+
+// 要素ID定数
+const ELEMENT_IDS = {
+  MESSAGE_BOX: 'chrome-extension-message-box',
+  ERROR_ROW: 'CA-Utils_ERROR_ROW',
+  ERROR_CELL: 'CA-Utils_ERROR_CELL',
+  HRMOS_BUTTON: 'getHrmosWorkTimeButton',
+  OPERATION_TIME_BUTTON_AREA: 'operationTimeButtonArea',
+  CALENDAR_IFRAME: 'calendarIframe',
+  CALENDAR_BUTTON: 'calendarButton',
+  DIFF_WORKTIME_BUTTON: 'diffWorkTimeButton'
+};
 
 // デバッグログ用のヘルパー関数
 function debugLog(...args) {
@@ -42,13 +65,29 @@ function safeGetText(element) {
   }
 }
 
-// 安全なHTML取得のヘルパー関数
-function safeGetHTML(element) {
+// テーブルの列番号を動的に取得するヘルパー関数
+function getColumnIndices(tableOrTbody) {
   try {
-    return element ? element.innerHTML || '' : '';
+    const headerRow = tableOrTbody.querySelector('thead tr') ||
+                      tableOrTbody.closest('table')?.querySelector('thead tr');
+
+    if (!headerRow) return null;
+
+    const headers = Array.from(headerRow.querySelectorAll('th'));
+    const indices = {};
+
+    headers.forEach((th, index) => {
+      const text = safeGetText(th).trim();
+      if (text.includes('日付') || text.match(/^\d+日/)) indices.date = index;
+      if (text.includes('勤務時間')) indices.workTime = index;
+      if (text.includes('稼働時間')) indices.operationTime = index;
+      if (text.includes('計画工数')) indices.plannedEffort = index;
+    });
+
+    return Object.keys(indices).length > 0 ? indices : null;
   } catch (e) {
-    console.warn(`safeGetHTML error: ${e.message}`, { element });
-    return '';
+    console.warn('getColumnIndices error:', e.message);
+    return null;
   }
 }
 
@@ -73,64 +112,57 @@ function isWorksheetPage() {
   }
 }
 
+// 要素削除ヘルパー関数
+function removeElementById(id) {
+  const element = document.getElementById(id);
+  if (element) {
+    element.remove();
+    return true;
+  }
+  return false;
+}
+
+function removeElementsBySelector(selector) {
+  const elements = document.querySelectorAll(selector);
+  elements.forEach(el => el.remove());
+  return elements.length;
+}
+
+function resetElementStyles(selector, styleProps) {
+  document.querySelectorAll(selector).forEach(item => {
+    Object.keys(styleProps).forEach(prop => {
+      item.style[prop] = styleProps[prop];
+    });
+    item.id = '';
+  });
+}
+
 // 画面上の情報をクリーンアップする関数
 function cleanupDisplay() {
   try {
     // メッセージボックスを削除
-    const messageBox = document.getElementById('chrome-extension-message-box');
-    if (messageBox) {
-      messageBox.remove();
-    }
+    removeElementById(ELEMENT_IDS.MESSAGE_BOX);
 
     // ハイライトされた行の色をリセット
-    document.querySelectorAll('#CA-Utils_ERROR_ROW').forEach(item => {
-      item.style.backgroundColor = "";
-      item.id = '';
-    });
+    resetElementStyles(`#${ELEMENT_IDS.ERROR_ROW}`, { backgroundColor: '' });
 
     // ハイライトされたセルの枠線をリセット
-    document.querySelectorAll('#CA-Utils_ERROR_CELL').forEach(item => {
-      item.style.border = "";
-      item.id = '';
-    });
+    resetElementStyles(`#${ELEMENT_IDS.ERROR_CELL}`, { border: '' });
 
-    // 追加されたボタンを削除
-    const hrmosButton = document.getElementById('getHrmosWorkTimeButton');
-    if (hrmosButton) {
-      hrmosButton.remove();
-    }
+    // 追加されたボタンとエリアを削除
+    const elementsToRemove = [
+      ELEMENT_IDS.HRMOS_BUTTON,
+      ELEMENT_IDS.OPERATION_TIME_BUTTON_AREA,
+      ELEMENT_IDS.CALENDAR_IFRAME,
+      ELEMENT_IDS.CALENDAR_BUTTON,
+      ELEMENT_IDS.DIFF_WORKTIME_BUTTON
+    ];
+
+    elementsToRemove.forEach(id => removeElementById(id));
 
     // 工数入力画面のボタンを削除
-    document.querySelectorAll('[id^="getOperationTimeButton-"]').forEach(button => {
-      button.remove();
-    });
-
-    document.querySelectorAll('[id^="addTimeButton-"]').forEach(button => {
-      button.remove();
-    });
-
-    // ボタンエリアを削除
-    document.querySelectorAll('#operationTimeButtonArea').forEach(area => {
-      area.remove();
-    });
-
-    // カレンダーiframeを削除
-    const calendarIframe = document.getElementById('calendarIframe');
-    if (calendarIframe) {
-      calendarIframe.remove();
-    }
-
-    // カレンダーボタンを削除
-    const calendarButton = document.getElementById('calendarButton');
-    if (calendarButton) {
-      calendarButton.remove();
-    }
-
-    // 勤務時間差分ボタンを削除
-    const diffButton = document.getElementById('diffWorkTimeButton');
-    if (diffButton) {
-      diffButton.remove();
-    }
+    removeElementsBySelector('[id^="getOperationTimeButton-"]');
+    removeElementsBySelector('[id^="addTimeButton-"]');
 
     debugLog('画面クリーンアップ完了');
   } catch (e) {
@@ -155,7 +187,6 @@ const observer = new MutationObserver((mutations) => {
 
         // Elementノードのみを対象にする
         const elementNodes = addedNodesArray.filter(node => node.nodeType === Node.ELEMENT_NODE);
-        // console.log(elementNodes);
         if (elementNodes.length > 0) {
           // 画面を開いた時の処理
           elementNodes.forEach(node => {
@@ -183,7 +214,7 @@ const observer = new MutationObserver((mutations) => {
                 safeGetText(child).trim().startsWith('稼働入力')
               )
             )) {
-              console.log("drawerが表示されました");
+              debugLog("drawerが表示されました");
               refreshDisplay();
             }
           } catch (e) {
@@ -193,7 +224,6 @@ const observer = new MutationObserver((mutations) => {
           // 工数入力画面を閉じた時の処理
           try {
             if (elementNodes.some(node => node.classList && node.classList.contains('v-move'))) {
-              //console.log('工数入力画面を閉じました');
               highlightUnenteredOperationTime();
             }
           } catch (e) {
@@ -221,7 +251,6 @@ try {
 }
 
 // 初期読み込み時に実行する処理
-//refreshDisplay();
 try {
   // worksheetページの場合のみ初期処理を実行
   if (isWorksheetPage()) {
@@ -340,27 +369,93 @@ function getOperationTime(response, getDiff = false) {
         }
 
         // Co-assignで勤怠データが存在する日付を取得
-        const tbody = safeQuerySelector(document, 'tbody');
+        // Drawer外の月次勤務表のtbodyを取得（Drawer内のテーブルを除外）
+        let tbody = null;
+        const allTbodies = document.querySelectorAll('tbody');
+        debugLog('ページ内のtbody数:', allTbodies.length);
+
+        // Drawer（role="dialog"）外のtbodyで、実際のデータ行を持つものを探す
+        for (const tb of allTbodies) {
+          let isInDrawer = false;
+          let parent = tb.parentElement;
+          let depth = 0;
+
+          // 親要素を辿ってDrawer内かチェック
+          while (parent && depth < 20) {
+            if (parent.getAttribute('role') === 'dialog') {
+              isInDrawer = true;
+              debugLog('tbody はDrawer内にあるためスキップ');
+              break;
+            }
+            parent = parent.parentElement;
+            depth++;
+          }
+
+          // Drawer外で、かつ複数の行を持ち、日付データがあるtbodyを探す
+          if (!isInDrawer) {
+            const tbRows = tb.querySelectorAll('tr');
+            debugLog(`tbody候補: 行数=${tbRows.length}`);
+
+            // 行数が5行以上ある（実際の勤務表は通常20-31行ある）
+            if (tbRows.length >= 5) {
+              // 最初の行に日付らしきデータがあるかチェック
+              const firstRow = tbRows[0];
+              if (firstRow && firstRow.children.length > 0) {
+                const firstCellText = safeGetText(firstRow.children[0]).trim();
+                debugLog(`  最初の行の最初のセル: "${firstCellText}"`);
+
+                // 日付形式（数字で始まる）または曜日を含むかチェック
+                if (firstCellText.match(/^\d+/) || firstCellText.includes('月') ||
+                    firstCellText.includes('火') || firstCellText.includes('水') ||
+                    firstCellText.includes('木') || firstCellText.includes('金') ||
+                    firstCellText.includes('土') || firstCellText.includes('日')) {
+                  tbody = tb;
+                  debugLog('月次勤務表のtbodyを発見（行数:', tbRows.length, '）');
+                  break;
+                }
+              }
+            }
+          }
+        }
+
         if (tbody == null) {
-          showMessage("テーブルが見つかりません。", "warn");
+          showMessage("月次勤務表のテーブルが見つかりません。", "warn");
           if (getDiff) return { sumTimeCA: '0:00', sumTimeHRMOS: '0:00' };
           return;
         }
-        
+
         const rows = [...tbody.querySelectorAll('tr')];
+        debugLog('取得した行数:', rows.length);
+
         if (!rows || rows.length === 0) {
           showMessage("テーブル行が見つかりません。", "warn");
           if (getDiff) return { sumTimeCA: '0:00', sumTimeHRMOS: '0:00' };
           return;
         }
 
+        // 列番号を動的に取得
+        const columnIndices = getColumnIndices(tbody);
+        if (!columnIndices) {
+          debugLog('列情報の取得に失敗しました。固定インデックスを使用します。');
+        } else {
+          debugLog('列情報:', columnIndices);
+        }
+
+        // 列番号を決定（動的取得に失敗した場合はフォールバック）
+        const dateCol = columnIndices?.date ?? 0;
+        const workTimeCol = columnIndices?.workTime ?? 4;
+        const operationTimeCol = columnIndices?.operationTime ?? 5;
+
         const dataExistsCARows = rows.filter(item => {
           try {
-            const child2 = safeArrayAccess(item.childNodes, 2);
-            const child3 = safeArrayAccess(item.childNodes, 3);
-            return child2 && child3 &&
-                   safeGetText(child2).trim() == "-" &&
-                   safeGetText(child3).trim() == "-";
+            // 稼働時間列をチェック
+            const workTimeCell = safeArrayAccess(item.children, operationTimeCol);
+            if (!workTimeCell) return false;
+
+            const workTime = safeGetText(workTimeCell).trim();
+
+            // 稼働時間が "0:00" の場合は未入力（Co-Assignでは未入力時に0:00と表示される）
+            return workTime === "0:00";
           } catch (e) {
             console.warn('dataExistsCARows filter error:', e.message);
             return false;
@@ -371,8 +466,8 @@ function getOperationTime(response, getDiff = false) {
 
         const dataExistsCA = dataExistsCARows.map(item => {
           try {
-            const child0 = safeArrayAccess(item.children, 0);
-            const dayText = safeGetText(child0);
+            const dateCell = safeArrayAccess(item.children, dateCol);
+            const dayText = safeGetText(dateCell);
             const day = extractDay(dayText);
             debugLog('未入力行の日付:', dayText, '-> 抽出:', day);
             return {
@@ -390,11 +485,11 @@ function getOperationTime(response, getDiff = false) {
         const timeDiffCA = rows
           .filter(item => {
             try {
-              const child4 = safeArrayAccess(item.children, 4);
-              const child5 = safeArrayAccess(item.children, 5);
-              return child4 && child5 && 
-                     safeGetText(child4) != '-' &&
-                     safeGetText(child4) != safeGetText(child5);
+              const workTimeCell = safeArrayAccess(item.children, workTimeCol);
+              const operationTimeCell = safeArrayAccess(item.children, operationTimeCol);
+              return workTimeCell && operationTimeCell &&
+                     safeGetText(workTimeCell) != '-' &&
+                     safeGetText(workTimeCell) != safeGetText(operationTimeCell);
             } catch (e) {
               console.warn('timeDiffCA filter error:', e.message);
               return false;
@@ -402,10 +497,10 @@ function getOperationTime(response, getDiff = false) {
           })
           .map(item => {
             try {
-              const child0 = safeArrayAccess(item.children, 0);
-              return { 
-                "day": extractDay(safeGetText(child0)), 
-                "element": item 
+              const dateCell = safeArrayAccess(item.children, dateCol);
+              return {
+                "day": extractDay(safeGetText(dateCell)),
+                "element": item
               };
             } catch (e) {
               console.warn('timeDiffCA map error:', e.message);
@@ -415,18 +510,18 @@ function getOperationTime(response, getDiff = false) {
 
         const addWorkTimeCARows = rows.filter(item => {
           try {
-            const child5 = safeArrayAccess(item.childNodes, 5);
-            return child5 && safeGetText(child5).trim() != "-";
+            const operationTimeCell = safeArrayAccess(item.children, operationTimeCol);
+            return operationTimeCell && safeGetText(operationTimeCell).trim() != "-";
           } catch (e) {
             console.warn('addWorkTimeCARows filter error:', e.message);
             return false;
           }
         });
-        
+
         const addWorkTimeCA = addWorkTimeCARows.map(item => {
           try {
             // <td>内の<div>のテキスト（例: 4:18）を取得
-            const td = safeArrayAccess(item.children, 5);
+            const td = safeArrayAccess(item.children, operationTimeCol);
             if (!td) return '';
             
             const timeDiv = safeQuerySelector(td, 'div div');
@@ -540,7 +635,7 @@ function getOperationTime(response, getDiff = false) {
           console.warn('ハイライトリセットエラー:', e.message);
         }
 
-        // 工数が未入力の行が無い場合
+        // 工数未入力のチェック結果に応じてメッセージを表示
         if (needActionRows.length != 0) {
           showMessage("未入力の工数があります。", "warn");
 
@@ -563,13 +658,13 @@ function getOperationTime(response, getDiff = false) {
           for (const errorRow of timeDiffCA) {
             try {
               if (errorRow.element) {
-                const child4 = safeArrayAccess(errorRow.element.children, 4);
-                const child5 = safeArrayAccess(errorRow.element.children, 5);
-                if (child4 && child5) {
-                  child4.style.border = "2px solid red";
-                  child5.style.border = "2px solid red";
-                  child4.id = "CA-Utils_ERROR_CELL";
-                  child5.id = "CA-Utils_ERROR_CELL";
+                const workTimeCell = safeArrayAccess(errorRow.element.children, workTimeCol);
+                const operationTimeCell = safeArrayAccess(errorRow.element.children, operationTimeCol);
+                if (workTimeCell && operationTimeCell) {
+                  workTimeCell.style.border = "2px solid red";
+                  operationTimeCell.style.border = "2px solid red";
+                  workTimeCell.id = "CA-Utils_ERROR_CELL";
+                  operationTimeCell.id = "CA-Utils_ERROR_CELL";
                 }
               }
             } catch (e) {
@@ -577,8 +672,8 @@ function getOperationTime(response, getDiff = false) {
             }
           }
         }
-        else {
-          // メッセージを表示する例
+        else if (dataExistsCA.length > 0) {
+          // 工数データが存在し、かつ問題がない場合のみ成功メッセージを表示
           showMessage("全ての工数が入力されています。その調子！");
         }
 
@@ -1808,7 +1903,7 @@ function addButtonShowDiffWorkTime() {
       return;
     }
 
-    console.log('[CA-Utils] サイドメニューを発見しました（差分ボタン用）');
+    debugLog('サイドメニューを発見しました（差分ボタン用）');
 
     // 既存のメニュー項目のスタイルを確認
     const existingMenuItem = menuDiv.querySelector('a, button');
@@ -1864,11 +1959,9 @@ function addButtonShowDiffWorkTime() {
               return;
             }
 
-            let diffTime = {};
-            diffTime = getOperationTime(response, true);
-            let msg = 'Co-Assign上の勤務時間合計：' + diffTime.sumTimeCA +
-              '\nHRMOS上の勤務時間合計：' + diffTime.sumTimeHRMOS +
-              '\n差分：' + (diffTime.sumTimeCA == diffTime.sumTimeHRMOS ? '無し！' : 'あり！');
+            const diffTime = getOperationTime(response, true);
+            const hasDiff = diffTime.sumTimeCA !== diffTime.sumTimeHRMOS;
+            const msg = `Co-Assign上の勤務時間合計：${diffTime.sumTimeCA}\nHRMOS上の勤務時間合計：${diffTime.sumTimeHRMOS}\n差分：${hasDiff ? 'あり！' : '無し！'}`;
             alert(msg);
           } catch (e) {
             if (isExtensionContextValid()) {
@@ -1889,32 +1982,44 @@ function addButtonShowDiffWorkTime() {
 
 // ボタンのスタイルを設定する関数
 function setCSS(button, paddingSize = "5px") {
-  button.style.backgroundColor = '#2693FF';
-  button.style.color = '#FFFFFF';
-  button.style.borderRadius = "5px";
-  button.style.padding = paddingSize;
+  // 基本スタイル設定
+  Object.assign(button.style, {
+    backgroundColor: COLORS.PRIMARY,
+    color: '#FFFFFF',
+    borderRadius: "5px",
+    padding: paddingSize,
+    cursor: 'pointer',
+    border: 'none'
+  });
+
+  // イベントリスナーが既に登録されているかチェック
+  if (button.dataset.cssApplied) {
+    return;
+  }
+  button.dataset.cssApplied = 'true';
+
   // ホバー時のスタイル
   button.addEventListener('mouseover', () => {
-    button.style.backgroundColor = '#1a75d1';
+    button.style.backgroundColor = COLORS.PRIMARY_HOVER;
     button.style.boxShadow = '0px 4px 6px rgba(0, 0, 0, 0.1)';
   });
 
   // ホバーが外れた時のスタイル
   button.addEventListener('mouseout', () => {
-    button.style.backgroundColor = '#2693FF';
+    button.style.backgroundColor = COLORS.PRIMARY;
     button.style.boxShadow = 'none';
   });
 
   // アクティブ時のスタイル
   button.addEventListener('mousedown', () => {
-    button.style.backgroundColor = '#004080';
+    button.style.backgroundColor = COLORS.PRIMARY_ACTIVE;
     button.style.boxShadow = '0px 2px 4px rgba(0, 0, 0, 0.2)';
   });
 
   // アクティブ状態が解除された時のスタイル
   button.addEventListener('mouseup', () => {
-    button.style.backgroundColor = '#1a75d1'; // ホバー状態の背景色に戻す
-    button.style.boxShadow = '0px 4px 6px rgba(0, 0, 0, 0.1)'; // ホバー状態のシャドウに戻す
+    button.style.backgroundColor = COLORS.PRIMARY_HOVER;
+    button.style.boxShadow = '0px 4px 6px rgba(0, 0, 0, 0.1)';
   });
 }
 
@@ -1948,20 +2053,15 @@ function minutesToTime(minutes) {
 function showMessage(message, type = 'info') {
   try {
     // 既存のメッセージボックスがある場合は削除
-    const existingBox = document.getElementById('chrome-extension-message-box');
-    if (existingBox) {
-      existingBox.remove();
-    }
+    removeElementById(ELEMENT_IDS.MESSAGE_BOX);
 
     // メッセージボックスの要素を作成
     const messageBox = document.createElement('div');
-    messageBox.id = 'chrome-extension-message-box';
-    messageBox.style.display = 'flex';  // ✖ボタンを右端に配置するためにフレックスボックスを使用
-    messageBox.style.alignItems = 'center';
+    messageBox.id = ELEMENT_IDS.MESSAGE_BOX;
 
     // メッセージ部分の要素を作成
     const messageText = document.createElement('span');
-    
+
     // XSS対策: 安全なテキスト表示
     if (message.includes('<a href=') && message.includes('</a>')) {
       // HRMOSリンクを含む特別なケースの処理
@@ -1969,12 +2069,12 @@ function showMessage(message, type = 'info') {
       if (linkMatch) {
         const beforeLink = message.substring(0, message.indexOf('<a'));
         const afterLink = message.substring(message.indexOf('</a>') + 4);
-        
+
         messageText.textContent = beforeLink;
         const link = document.createElement('a');
         link.href = linkMatch[1];
         link.target = '_blank';
-        link.style.color = '#0066cc';
+        link.style.color = COLORS.LINK;
         link.style.textDecoration = 'underline';
         link.textContent = linkMatch[2];
         messageText.appendChild(link);
@@ -1990,45 +2090,43 @@ function showMessage(message, type = 'info') {
     // ✖ボタンの作成
     const closeButton = document.createElement('button');
     closeButton.textContent = '　×　';
-    closeButton.style.marginLeft = 'auto';  // ボタンを右端に配置
-    closeButton.style.backgroundColor = 'transparent';
-    closeButton.style.border = 'none';
-    closeButton.style.color = '#fff';
-    closeButton.style.fontSize = '16px';
-    closeButton.style.cursor = 'pointer';
-
-    // ✖ボタンがクリックされたときにメッセージボックスを削除
-    closeButton.addEventListener('click', () => {
-      messageBox.remove();
+    Object.assign(closeButton.style, {
+      marginLeft: 'auto',
+      backgroundColor: 'transparent',
+      border: 'none',
+      color: '#fff',
+      fontSize: '16px',
+      cursor: 'pointer'
     });
 
-    // スタイル設定
-    messageBox.style.position = 'fixed';
-    messageBox.style.top = '0';
-    messageBox.style.left = '50%';
-    messageBox.style.transform = 'translateX(-50%)';
-    messageBox.style.padding = '10px 20px';
-    messageBox.style.zIndex = '10000';
-    messageBox.style.color = '#fff';
-    messageBox.style.borderRadius = '5px';
-    messageBox.style.boxShadow = '0px 4px 6px rgba(0, 0, 0, 0.1)';
-    messageBox.style.fontSize = '14px';
-    messageBox.style.fontFamily = 'Arial, sans-serif';
+    closeButton.addEventListener('click', () => messageBox.remove());
 
     // 背景色の設定
-    switch (type) {
-      case 'error':
-        messageBox.style.backgroundColor = '#ff4d4f'; // エラーは赤
-        break;
-      case 'warn':
-        messageBox.style.backgroundColor = '#fd7e00'; // 警告はオレンジ
-        messageBox.style.color = '#000'; // 黒文字に変更（読みやすくするため）
-        break;
-      case 'info':
-      default:
-        messageBox.style.backgroundColor = '#2196f3'; // 情報は青
-        break;
-    }
+    const colorMap = {
+      error: COLORS.ERROR,
+      warn: COLORS.WARNING,
+      info: COLORS.INFO
+    };
+    const backgroundColor = colorMap[type] || COLORS.INFO;
+    const textColor = type === 'warn' ? '#000' : '#fff';
+
+    // スタイル設定
+    Object.assign(messageBox.style, {
+      display: 'flex',
+      alignItems: 'center',
+      position: 'fixed',
+      top: '0',
+      left: '50%',
+      transform: 'translateX(-50%)',
+      padding: '10px 20px',
+      zIndex: '10000',
+      color: textColor,
+      backgroundColor: backgroundColor,
+      borderRadius: '5px',
+      boxShadow: '0px 4px 6px rgba(0, 0, 0, 0.1)',
+      fontSize: '14px',
+      fontFamily: 'Arial, sans-serif'
+    });
 
     // メッセージボックスにメッセージと✖ボタンを追加
     messageBox.appendChild(messageText);
@@ -2037,7 +2135,7 @@ function showMessage(message, type = 'info') {
     // メッセージボックスをドキュメントに追加
     document.body.appendChild(messageBox);
   } catch (e) {
-    alert('メッセージ表示エラー: ' + e.message + '\n' + (message || ''));
+    alert(`メッセージ表示エラー: ${e.message}\n${message || ''}`);
   }
 }
 
