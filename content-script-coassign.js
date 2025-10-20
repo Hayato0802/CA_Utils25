@@ -617,39 +617,112 @@ function refreshDisplay() {
     try {
       debugLog('addButtonOperationTime() が呼ばれました');
 
-      // 工数入力のテーブル要素を取得（複数の方法で探す）
+      // まずdrawer（稼働入力画面）が開いているか確認
+      // 複数の方法でdrawerの存在を確認
+      let drawerOpen = false;
+      let drawer = null;
+
+      // 方法1: .page-title要素で「稼働入力」を探す
+      const pageTitles = document.querySelectorAll('.page-title');
+      debugLog('.page-title要素の数:', pageTitles.length);
+
+      pageTitles.forEach((title, i) => {
+        const titleText = safeGetText(title).trim();
+        debugLog(`.page-title[${i}]:`, titleText);
+        if (titleText.includes('稼働入力')) {
+          debugLog('方法1: .page-titleで稼働入力画面を発見');
+          drawerOpen = true;
+          // drawerのコンテナ要素を親要素から探す
+          let parent = title.parentElement;
+          let depth = 0;
+          while (parent && depth < 15) {
+            if (parent.querySelector('.p-5') || parent.classList.contains('drawer') ||
+                parent.getAttribute('role') === 'dialog') {
+              drawer = parent;
+              debugLog('drawerコンテナを発見（深さ:', depth, '）');
+              break;
+            }
+            parent = parent.parentElement;
+            depth++;
+          }
+        }
+      });
+
+      // 方法2: role="dialog"でdrawerを探す
+      if (!drawerOpen) {
+        const dialogs = document.querySelectorAll('[role="dialog"]');
+        debugLog('role="dialog"要素の数:', dialogs.length);
+        dialogs.forEach((dialog, i) => {
+          const dialogText = safeGetText(dialog);
+          if (dialogText.includes('稼働入力') || dialogText.includes('勤務時間')) {
+            debugLog('方法2: role="dialog"で稼働入力画面を発見（', i, '番目）');
+            drawerOpen = true;
+            drawer = dialog;
+          }
+        });
+      }
+
+      if (!drawerOpen || !drawer) {
+        debugLog('drawer（稼働入力画面）が開いていません');
+        return;
+      }
+
+      debugLog('drawer（稼働入力画面）を発見');
+
+      // drawer内の工数入力テーブルを探す（複数の方法で探す）
       let operationTimeTable = null;
 
-      // 方法1: .p-4 内の .table-fixed
-      operationTimeTable = safeQuerySelector(document, '.p-4 .table-fixed');
+      // 方法1: drawer内の .p-4 .table-fixed
+      operationTimeTable = safeQuerySelector(drawer, '.p-4 .table-fixed');
+      if (operationTimeTable) {
+        debugLog('テーブルを発見（drawer内 .p-4）');
+      }
 
-      // 方法2: .p-2.md:p-4 内の .table-fixed（新しい構造）
+      // 方法2: drawer内の .p-2 または .p-4 コンテナ内の .table-fixed（新しい構造）
       if (!operationTimeTable) {
-        const containers = document.querySelectorAll('[class*="p-2"], [class*="p-4"]');
+        const containers = drawer.querySelectorAll('[class*="p-2"], [class*="p-4"]');
+        debugLog('drawer内のp-2/p-4コンテナ数:', containers.length);
         for (const container of containers) {
           const table = container.querySelector('.table-fixed');
           if (table) {
+            // ヘッダーに「プロジェクト名」が含まれているか確認（稼働入力テーブルの判定）
+            const headers = table.querySelectorAll('thead th');
+            const hasProjectName = Array.from(headers).some(th =>
+              safeGetText(th).includes('プロジェクト')
+            );
+            if (hasProjectName) {
+              operationTimeTable = table;
+              debugLog('テーブルを発見（drawer内 p-2/p-4コンテナ、プロジェクト名ヘッダーあり）');
+              break;
+            }
+          }
+        }
+      }
+
+      // 方法3: drawer内の .table-fixed を直接探す
+      if (!operationTimeTable) {
+        const tables = drawer.querySelectorAll('.table-fixed');
+        debugLog('drawer内の.table-fixed数:', tables.length);
+        // 複数ある場合、「プロジェクト名」ヘッダーを持つものを探す
+        for (const table of tables) {
+          const headers = table.querySelectorAll('thead th');
+          const hasProjectName = Array.from(headers).some(th =>
+            safeGetText(th).includes('プロジェクト')
+          );
+          if (hasProjectName) {
             operationTimeTable = table;
-            debugLog('テーブルを発見（p-2/p-4コンテナ内）');
+            debugLog('テーブルを発見（drawer内 .table-fixed直接検索、プロジェクト名ヘッダーあり）');
             break;
           }
         }
       }
 
-      // 方法3: .table-fixed を直接探す
       if (!operationTimeTable) {
-        operationTimeTable = safeQuerySelector(document, '.table-fixed');
-        if (operationTimeTable) {
-          debugLog('テーブルを発見（直接検索）');
-        }
-      }
-
-      if (!operationTimeTable) {
-        debugLog('工数テーブルが見つかりません');
+        debugLog('drawer内に工数テーブルが見つかりません');
         return;
       }
 
-      debugLog('テーブル発見:', operationTimeTable);
+      debugLog('稼働入力テーブル発見:', operationTimeTable);
 
       // ボタン用のエリア（カラム：CA Utils）が既に存在するか確認
       if (!document.getElementById('operationTimeButtonArea')) {
@@ -663,8 +736,9 @@ function refreshDisplay() {
 
           debugLog('ヘッダー行を発見');
 
-          // 「稼働時間」ヘッダーを探す（複数の方法で）
+          // 「稼働時間」と「計画工数」ヘッダーを探す（複数の方法で）
           let operationTimeColumn = null;
+          let plannedEffortColumn = null;
           const headers = headerRow.querySelectorAll('th');
 
           debugLog('ヘッダー数:', headers.length);
@@ -675,12 +749,18 @@ function refreshDisplay() {
             debugLog(`ヘッダー[${index}]: "${text}"`);
           });
 
+          // 「稼働時間」ヘッダーを探す
           // 方法1: テキストで「稼働時間」を探す
           headers.forEach((th, index) => {
             const text = safeGetText(th);
             if (text.includes('稼働時間')) {
               operationTimeColumn = th;
               debugLog('稼働時間ヘッダーを発見（テキスト検索、', index, '番目）');
+            }
+            // 「計画工数」も探す
+            if (text.includes('計画工数')) {
+              plannedEffortColumn = th;
+              debugLog('計画工数ヘッダーを発見（テキスト検索、', index, '番目）');
             }
           });
 
@@ -717,6 +797,18 @@ function refreshDisplay() {
             return;
           }
 
+          // 計画工数列が見つからなかった場合、稼働時間列の次から2つ目の列を探す
+          // スクリーンショットから：稼働時間 → ⏪ボタン → 計画工数 の順と推測
+          if (!plannedEffortColumn && operationTimeColumn.nextElementSibling) {
+            // 稼働時間の次の要素（おそらく⏪ボタンなど）
+            const nextColumn = operationTimeColumn.nextElementSibling;
+            // その次の要素が計画工数の可能性が高い
+            if (nextColumn.nextElementSibling) {
+              plannedEffortColumn = nextColumn.nextElementSibling;
+              debugLog('計画工数ヘッダーを発見（稼働時間の2つ後）:', safeGetText(plannedEffortColumn));
+            }
+          }
+
           // ボタンエリアを作成
           const buttonArea = document.createElement('th');
           buttonArea.className = operationTimeColumn.className; // 既存ヘッダーと同じクラスを使用
@@ -724,9 +816,14 @@ function refreshDisplay() {
           buttonArea.innerText = 'CA Utils';
           buttonArea.title = 'Co-Assign Utils：拡張ボタン';
 
-          // 稼働時間列の後ろにボタンエリアを追加
-          headerRow.insertBefore(buttonArea, operationTimeColumn.nextSibling);
-          debugLog('ヘッダーにボタンエリアを追加しました');
+          // 「計画工数」列が見つかった場合はその前に、見つからなかった場合は「稼働時間」の後ろに挿入
+          if (plannedEffortColumn) {
+            headerRow.insertBefore(buttonArea, plannedEffortColumn);
+            debugLog('計画工数の前にボタンエリアを追加しました');
+          } else {
+            headerRow.insertBefore(buttonArea, operationTimeColumn.nextSibling);
+            debugLog('稼働時間の後ろにボタンエリアを追加しました（計画工数列が見つかりませんでした）');
+          }
         } catch (e) {
           console.warn('ボタンエリア作成エラー:', e.message);
         }
@@ -746,13 +843,14 @@ function refreshDisplay() {
             return;
           }
 
-          // 稼働時間の入力欄を探す（複数の方法で）
+          // 稼働時間の入力欄と計画工数セルを探す（複数の方法で）
           let operationTimeCell = null;
+          let plannedEffortCell = null;
           const rowCells = row.querySelectorAll('.td-normal');
 
           debugLog(`行${index}: セル数=${rowCells.length}`);
 
-          // 方法1: .hs-dropdown input を含むセルを探す
+          // 方法1: .hs-dropdown input を含むセルを探す（稼働時間）
           rowCells.forEach((cell, cellIndex) => {
             const input = cell.querySelector('.hs-dropdown input[type="text"]');
             if (input && !operationTimeCell) {
@@ -761,7 +859,7 @@ function refreshDisplay() {
             }
           });
 
-          // 方法2: input.input-text を含むセルを探す
+          // 方法2: input.input-text を含むセルを探す（稼働時間）
           if (!operationTimeCell) {
             rowCells.forEach((cell, cellIndex) => {
               const input = cell.querySelector('input.input-text[type="text"]');
@@ -777,15 +875,46 @@ function refreshDisplay() {
             return;
           }
 
+          // 計画工数セルを探す（稼働時間セルの次のセルを確認）
+          let nextCell = operationTimeCell.nextElementSibling;
+          let skipCount = 0;
+          while (nextCell && skipCount < 3) {
+            // 計画工数セルの特定：数値が表示されているセル、またはクラス名で判定
+            const cellText = safeGetText(nextCell).trim();
+            debugLog(`行${index}: 次のセル${skipCount}のテキスト:`, cellText);
+            // 数値またはハイフン（-）が含まれる場合、計画工数セルの可能性が高い
+            if (cellText.match(/^\d+(\.\d+)?$/) || cellText === '-' || cellText.includes(':')) {
+              plannedEffortCell = nextCell;
+              debugLog(`行${index}: 計画工数セルを発見（${skipCount}番目の次のセル）:`, cellText);
+              break;
+            }
+            nextCell = nextCell.nextElementSibling;
+            skipCount++;
+          }
+
+          // 計画工数セルが見つからなかった場合、稼働時間セルの2つ後のセルを使用
+          if (!plannedEffortCell && operationTimeCell.nextElementSibling) {
+            const nextColumn = operationTimeCell.nextElementSibling;
+            if (nextColumn.nextElementSibling) {
+              plannedEffortCell = nextColumn.nextElementSibling;
+              debugLog(`行${index}: 計画工数セルを発見（稼働時間の2つ後、フォールバック）`);
+            }
+          }
+
           // ボタン表示用エリアを作成
           const buttonArea = document.createElement('td');
           buttonArea.className = operationTimeCell.className; // 既存セルと同じクラスを使用
           buttonArea.style.padding = "0pt";
           buttonArea.style.textAlign = "right";
 
-          // 稼働時間の列の後ろにボタンエリアを追加
-          row.insertBefore(buttonArea, operationTimeCell.nextSibling);
-          debugLog(`行${index}: ボタンエリアを追加しました`);
+          // 「計画工数」セルが見つかった場合はその前に、見つからなかった場合は「稼働時間」の後ろに挿入
+          if (plannedEffortCell) {
+            row.insertBefore(buttonArea, plannedEffortCell);
+            debugLog(`行${index}: 計画工数の前にボタンエリアを追加しました`);
+          } else {
+            row.insertBefore(buttonArea, operationTimeCell.nextSibling);
+            debugLog(`行${index}: 稼働時間の後ろにボタンエリアを追加しました（計画工数セルが見つかりませんでした）`);
+          }
 
           // 「+」ボタンを作成
           const addTimeButton = document.createElement('button');
