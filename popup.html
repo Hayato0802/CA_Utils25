@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <title>CO-ASSIGN Utils</title>
+  <style>
+    body {
+      width: 250px;
+      padding: 10px;
+      font-family: Arial, sans-serif;
+    }
+    h1 {
+      font-size: 16px;
+      margin-bottom: 15px;
+    }
+    .section {
+      margin-bottom: 15px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid #e0e0e0;
+    }
+    .section:last-child {
+      border-bottom: none;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 5px;
+      margin-bottom: 10px;
+      box-sizing: border-box;
+    }
+    button {
+      background-color: #2693FF;
+      color: white;
+      border: none;
+      padding: 5px 15px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    button:hover {
+      background-color: #1a75d1;
+    }
+    .update-notification {
+      background-color: #fff3cd;
+      border: 1px solid #ffeeba;
+      color: #856404;
+      padding: 10px;
+      border-radius: 3px;
+      margin-bottom: 10px;
+      display: none;
+    }
+    .update-notification.show {
+      display: block;
+    }
+    .update-notification a {
+      color: #0066cc;
+      text-decoration: none;
+    }
+    .update-notification a:hover {
+      text-decoration: underline;
+    }
+    .version-info {
+      font-size: 11px;
+      color: #666;
+      text-align: center;
+      margin-top: 10px;
+    }
+    #checkUpdatesBtn {
+      background-color: #6c757d;
+      font-size: 11px;
+      padding: 3px 10px;
+      margin-top: 5px;
+    }
+    #checkUpdatesBtn:hover {
+      background-color: #5a6268;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>CO-ASSIGN Utils</h1>
+  
+  <div id="updateNotification" class="update-notification">
+    <strong>新しいバージョンが利用可能です！</strong><br>
+    <span id="updateMessage"></span><br>
+    <a id="downloadLink" href="#" target="_blank">ダウンロードページへ</a>
+  </div>
+  
+  <div class="section">
+    <label>カレンダー用アドレス</label>
+    <input type="text" id="emailInput" placeholder="メールアドレスを入力">
+    <button id="saveEmail">保存</button>
+  </div>
+  
+  <div class="section">
+    <div class="version-info">
+      バージョン: <span id="currentVersion"></span><br>
+      <button id="checkUpdatesBtn">更新を確認</button>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+
+</html>

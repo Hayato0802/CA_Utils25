@@ -1,0 +1,28 @@
+# Configuration file (contains personal settings and API keys)
+config.js
+
+# Node modules
+node_modules/
+
+# Build files
+dist/
+build/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Temporary files
+*.tmp
+.cache/

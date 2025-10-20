@@ -1,0 +1,40 @@
+{
+  "manifest_version": 3,
+  "name": "Co-Assign Utils",
+  "description": "Co-Assign Utils",
+  "version": "1.5.7",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "alarms",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://p.ieyasu.co/*",
+    "https://*.ieyasu.co/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.co-assign.com/worksheet/*"
+      ],
+      "js": [
+        "config.js",
+        "utils.js",
+        "content-script-coassign.js"
+      ]
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "images/co_assign_utils_icon_16.png",
+      "48": "images/co_assign_utils_icon_48.png",
+      "128": "images/co_assign_utils_icon_128.png"
+    }
+  }
+}
