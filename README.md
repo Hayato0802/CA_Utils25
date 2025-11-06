@@ -39,10 +39,10 @@ Co-AssignとHRMOS（IEYASU）を連携させて、勤怠管理業務を効率化
 ### 1. ファイルのダウンロード
 ```bash
 # GitHubからクローン
-git clone https://github.com/Hayato0802/CA_Utils.git
+git clone https://github.com/YOUR_USERNAME/YOUR_REPO.git
 ```
 
-または、ZIPファイルをダウンロードして解凍します。
+または、GitHubのReleasesページからZIPファイルをダウンロードして解凍します。
 
 ### 2. Chrome拡張機能として読み込み
 1. Chromeで `chrome://extensions/` を開く
@@ -60,13 +60,13 @@ git clone https://github.com/Hayato0802/CA_Utils.git
 ```javascript
 const CONFIG = {
     // Co-Assign URLパターン（通常は変更不要）
-    TIMETRACKING_BASE_URL: 'https://blueship.co-assign.com/worksheet',
+    TIMETRACKING_BASE_URL: 'https://YOUR_COMPANY.co-assign.com/worksheet',
 
     // HRMOS URLパターン
     HR_SYSTEM_URL_PATTERN: 'https://p.ieyasu.co/works/*',
 
     // GitHub リポジトリ（自動更新用）
-    GITHUB_REPO: 'Hayato0802/CA_Utils',
+    GITHUB_REPO: 'YOUR_USERNAME/YOUR_REPO',
 
     // 時間調整の設定
     OFFSET_MINUTES: 5,        // +/-ボタンの増減時間（分）
@@ -86,8 +86,8 @@ const CONFIG = {
 
 ```javascript
 // リモートスクリプト設定
-REMOTE_SCRIPT_URL: 'https://hayato0802.github.io/CA_Utils/scripts/content-script-coassign.js',
-REMOTE_VERSION_URL: 'https://hayato0802.github.io/CA_Utils/version.json',
+REMOTE_SCRIPT_URL: 'https://YOUR_USERNAME.github.io/YOUR_REPO/scripts/content-script-coassign.js',
+REMOTE_VERSION_URL: 'https://YOUR_USERNAME.github.io/YOUR_REPO/version.json',
 
 // キャッシュ設定
 CACHE_ENABLED: true,           // キャッシュを有効化
@@ -215,19 +215,17 @@ cp config.sample.js config.js
 ## 開発者向け情報
 
 ### デバッグモード
-`utils.js` に開発モード判定関数があります：
-```javascript
-const isDevelopment = () => {
-  return !('update_url' in chrome.runtime.getManifest());
-};
-```
+拡張機能のポップアップからデバッグモードを切り替えできます：
+1. 拡張機能アイコンをクリック
+2. 「デバッグモード (コンソールにログを出力)」のチェックボックスをON/OFF
+3. 設定は自動的に保存され、すべてのタブに適用されます
 
-### ログ出力
-開発モードでのみコンソールログが出力されます：
+デバッグモードを有効にすると、コンソールに詳細なログが出力されます：
 ```javascript
-log('[CA-Utils] デバッグメッセージ');
-warn('[CA-Utils] 警告メッセージ');
-error('[CA-Utils] エラーメッセージ');
+debugLog('[CA-Utils] デバッグメッセージ');  // デバッグモード有効時のみ出力
+console.log('[CA-Utils] 通常メッセージ');    // 常に出力
+console.warn('[CA-Utils] 警告メッセージ');   // 常に出力
+console.error('[CA-Utils] エラーメッセージ'); // 常に出力
 ```
 
 ### ビルド・デプロイ
@@ -237,7 +235,20 @@ error('[CA-Utils] エラーメッセージ');
 
 ## 更新履歴
 
-### v1.5.7 (最新)
+### v1.7.1 (最新)
+- 過不足調整ボタンをHTML構造変更に強いラベルベースの検索に変更
+- デバッグモードをオプション画面から切り替え可能に
+- ドロワー閉じ検出の改善（removedNodes監視とリトライロジック追加）
+- テーブル検出ロジックを改善（「10月01日(水)」形式に対応）
+- 休憩時間の自動入力処理を削除、警告機能は維持
+- 冗長なデバッグログを削減
+
+### v1.7.0
+- 列番号の動的取得を実装してHTML構造変更に対応
+- 更新チェック機能の追加
+- UIの改善
+
+### v1.5.7
 - HRMOSデータ取得の安定性向上
 - エラーハンドリングの改善
 - デバッグログの追加
@@ -248,8 +259,7 @@ error('[CA-Utils] エラーメッセージ');
 
 ## サポート
 
-バグ報告や機能要望は、GitHubのIssuesにお願いします：
-https://github.com/Hayato0802/CA_Utils/issues
+バグ報告や機能要望は、GitHubのIssuesページからお願いします。
 
 ## 注意事項
 
