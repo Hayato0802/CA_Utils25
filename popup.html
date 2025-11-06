@@ -6,8 +6,8 @@
   <title>CO-ASSIGN Utils</title>
   <style>
     body {
-      width: 250px;
-      padding: 10px;
+      width: 280px;
+      padding: 15px;
       font-family: Arial, sans-serif;
     }
     h1 {
@@ -72,13 +72,46 @@
       margin-top: 10px;
     }
     #checkUpdatesBtn {
-      background-color: #6c757d;
-      font-size: 11px;
-      padding: 3px 10px;
-      margin-top: 5px;
+      background-color: #2693FF;
+      font-size: 13px;
+      padding: 8px 16px;
+      margin-top: 8px;
+      font-weight: bold;
+      width: 100%;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     #checkUpdatesBtn:hover {
-      background-color: #5a6268;
+      background-color: #1a75d1;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+    #checkUpdatesBtn:active {
+      transform: translateY(0);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    #checkUpdatesBtn:disabled {
+      background-color: #95a5a6;
+      cursor: not-blocking;
+      transform: none;
+    }
+    #checkResult {
+      font-size: 12px;
+      margin-top: 8px;
+      display: block;
+      text-align: center;
+      font-weight: bold;
+      padding: 6px;
+      border-radius: 3px;
+      background-color: #f0f0f0;
+    }
+    #checkResult.success {
+      background-color: #e6f7e6;
+      color: #52c41a;
+    }
+    #checkResult.error {
+      background-color: #fff1f0;
+      color: #ff4d4f;
     }
   </style>
 </head>
@@ -97,11 +130,21 @@
     <input type="text" id="emailInput" placeholder="メールアドレスを入力">
     <button id="saveEmail">保存</button>
   </div>
+
+  <div class="section">
+    <label>
+      <input type="checkbox" id="debugMode">
+      デバッグモード (コンソールにログを出力)
+    </label>
+  </div>
   
   <div class="section">
     <div class="version-info">
-      バージョン: <span id="currentVersion"></span><br>
-      <button id="checkUpdatesBtn">更新を確認</button>
+      <div style="font-size: 12px; margin-bottom: 10px;">
+        バージョン: <strong id="currentVersion"></strong>
+      </div>
+      <button id="checkUpdatesBtn">🔄 更新を確認</button>
+      <span id="checkResult" style="display: none;"></span>
     </div>
   </div>
 

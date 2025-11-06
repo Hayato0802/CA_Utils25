@@ -777,6 +777,8 @@ function refreshDisplay() {
   // 工数入力のテーブルにボタンを追加する処理
   function addButtonOperationTime() {
     try {
+      debugLog('addButtonOperationTime() が呼ばれました');
+
       // まずdrawer（稼働入力画面）が開いているか確認
       // 複数の方法でdrawerの存在を確認
       let drawerOpen = false;
@@ -784,10 +786,12 @@ function refreshDisplay() {
 
       // 方法1: .page-title要素で「稼働入力」を探す
       const pageTitles = document.querySelectorAll('.page-title');
+      debugLog('.page-title要素の数:', pageTitles.length);
 
       pageTitles.forEach((title, i) => {
         const titleText = safeGetText(title).trim();
         if (titleText.includes('稼働入力')) {
+          debugLog('方法1: .page-titleで稼働入力画面を発見');
           drawerOpen = true;
           // drawerのコンテナ要素を親要素から探す
           let parent = title.parentElement;
@@ -808,7 +812,7 @@ function refreshDisplay() {
       // 方法2: role="dialog"でdrawerを探す
       if (!drawerOpen) {
         const dialogs = document.querySelectorAll('[role="dialog"]');
-
+        debugLog('role="dialog"要素の数:', dialogs.length);
         dialogs.forEach((dialog, i) => {
           const dialogText = safeGetText(dialog);
           if (dialogText.includes('稼働入力') || dialogText.includes('勤務時間')) {
@@ -832,13 +836,13 @@ function refreshDisplay() {
       // 方法1: drawer内の .p-4 .table-fixed
       operationTimeTable = safeQuerySelector(drawer, '.p-4 .table-fixed');
       if (operationTimeTable) {
-
+        debugLog('テーブルを発見（drawer内 .p-4）');
       }
 
       // 方法2: drawer内の .p-2 または .p-4 コンテナ内の .table-fixed（新しい構造）
       if (!operationTimeTable) {
         const containers = drawer.querySelectorAll('[class*="p-2"], [class*="p-4"]');
-
+        debugLog('drawer内のp-2/p-4コンテナ数:', containers.length);
         for (const container of containers) {
           const table = container.querySelector('.table-fixed');
           if (table) {
@@ -859,7 +863,7 @@ function refreshDisplay() {
       // 方法3: drawer内の .table-fixed を直接探す
       if (!operationTimeTable) {
         const tables = drawer.querySelectorAll('.table-fixed');
-
+        debugLog('drawer内の.table-fixed数:', tables.length);
         // 複数ある場合、「プロジェクト名」ヘッダーを持つものを探す
         for (const table of tables) {
           const headers = table.querySelectorAll('thead th');
@@ -875,7 +879,7 @@ function refreshDisplay() {
       }
 
       if (!operationTimeTable) {
-
+        debugLog('drawer内に工数テーブルが見つかりません');
         return;
       }
 
@@ -1338,6 +1342,7 @@ function refreshDisplay() {
       pageTitles.forEach((title, i) => {
         const titleText = safeGetText(title).trim();
         if (titleText.includes('稼働入力')) {
+          debugLog('方法1: .page-titleで稼働入力画面を発見');
           drawerOpen = true;
           // drawerのコンテナ要素を親要素から探す
           let parent = title.parentElement;
@@ -1359,7 +1364,7 @@ function refreshDisplay() {
       // 方法2: role="dialog"でdrawerを探す（モーダル/drawer要素の標準属性）
       if (!drawerOpen) {
         const dialogs = document.querySelectorAll('[role="dialog"]');
-
+        debugLog('role="dialog"要素の数:', dialogs.length);
         dialogs.forEach((dialog, i) => {
           const dialogText = safeGetText(dialog);
           if (dialogText.includes('稼働入力') || dialogText.includes('勤務時間')) {
@@ -1418,7 +1423,7 @@ function refreshDisplay() {
       labels.forEach((label, i) => {
         const labelText = safeGetText(label);
         if (labelText.includes('勤務時間')) {
-
+          debugLog('方法1: 勤務時間ラベルを発見（', i, '番目）');
           // ラベルの親要素を取得
           targetElement = label.parentElement;
           debugLog('配置先: 勤務時間ラベルの親要素');

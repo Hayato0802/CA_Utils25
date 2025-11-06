@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>GitHub API Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 5px; overflow-x: auto; }
+        button { padding: 10px 20px; background: #2693FF; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #1a75d1; }
+        .success { color: #52c41a; }
+        .error { color: #ff4d4f; }
+    </style>
+</head>
+<body>
+    <h1>GitHub Release API テスト</h1>
+    <p>リポジトリ: <strong>Hayato0802/CA_Utils25</strong></p>
+    <button onclick="checkRelease()">最新リリースを確認</button>
+    <div id="result"></div>
+
+    <script>
+        async function checkRelease() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '<p>確認中...</p>';
+
+            try {
+                const apiUrl = 'https://api.github.com/repos/Hayato0802/CA_Utils25/releases/latest';
+                console.log('API URL:', apiUrl);
+
+                const response = await fetch(apiUrl);
+                console.log('Response status:', response.status);
+
+                if (!response.ok) {
+                    resultDiv.innerHTML = `
+                        <h2 class="error">❌ エラー</h2>
+                        <p>ステータス: ${response.status} ${response.statusText}</p>
+                        <p><strong>原因:</strong> GitHubリポジトリにReleaseが作成されていません。</p>
+                        <h3>解決方法:</h3>
+                        <ol>
+                            <li><a href="https://github.com/Hayato0802/CA_Utils25/releases/new" target="_blank">こちらをクリック</a>して新しいReleaseを作成</li>
+                            <li>Tag version: <code>v1.7.0</code></li>
+                            <li>Release title: <code>v1.7.0</code></li>
+                            <li>「Publish release」をクリック</li>
+                        </ol>
+                    `;
+                    return;
+                }
+
+                const data = await response.json();
+                console.log('Release data:', data);
+
+                resultDiv.innerHTML = `
+                    <h2 class="success">✅ 成功</h2>
+                    <h3>最新リリース情報:</h3>
+                    <pre>${JSON.stringify({
+                        tag_name: data.tag_name,
+                        name: data.name,
+                        published_at: data.published_at,
+                        html_url: data.html_url
+                    }, null, 2)}</pre>
+                    <p><strong>タグ:</strong> ${data.tag_name}</p>
+                    <p><strong>リリース名:</strong> ${data.name}</p>
+                    <p><strong>公開日:</strong> ${new Date(data.published_at).toLocaleString('ja-JP')}</p>
+                    <p><a href="${data.html_url}" target="_blank">GitHubで見る</a></p>
+                `;
+            } catch (error) {
+                console.error('Error:', error);
+                resultDiv.innerHTML = `
+                    <h2 class="error">❌ エラー</h2>
+                    <p>${error.message}</p>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

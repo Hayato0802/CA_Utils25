@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Co-Assign Utils",
   "description": "Co-Assign Utils",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "permissions": [
     "activeTab",
     "scripting",
@@ -12,7 +12,8 @@
   ],
   "host_permissions": [
     "https://p.ieyasu.co/*",
-    "https://*.ieyasu.co/*"
+    "https://*.ieyasu.co/*",
+    "https://api.github.com/*"
   ],
   "background": {
     "service_worker": "background.js"

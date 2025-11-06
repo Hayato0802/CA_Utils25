@@ -182,6 +182,36 @@ CoAssignUtils/
 └── README.md                  # このファイル
 ```
 
+## セキュリティとプライバシー
+
+### ⚠️ 重要なセキュリティルール
+
+#### GITHUB_REPOは機密情報です
+- **GITHUB_REPO**（GitHubリポジトリ名）は**機密情報**として扱ってください
+- `config.js`**のみ**に記載し、他のファイルには**絶対に記載しない**こと
+- `config.js`は`.gitignore`に含まれており、リポジトリにコミットされません
+
+#### 設定ファイルの管理
+```
+✅ OK: config.js に GITHUB_REPO を記載
+❌ NG: background.js や README.md などに GITHUB_REPO を記載
+❌ NG: config.js を Git にコミット
+```
+
+#### config.jsのテンプレート
+リポジトリには `config.sample.js` のみをコミットし、実際の `config.js` は各自で作成してください：
+
+```bash
+# 初回セットアップ
+cp config.sample.js config.js
+# config.js を編集して GITHUB_REPO などを設定
+```
+
+### プライバシーポリシー
+- この拡張機能は外部サーバーにデータを送信しません
+- GitHubからの更新チェック時のみ、GitHub APIと通信します
+- 個人の勤怠データはブラウザ内でのみ処理されます
+
 ## 開発者向け情報
 
 ### デバッグモード
