@@ -1185,14 +1185,30 @@ function refreshDisplay() {
                 return;
               }
 
-              // 現在入力している時間を取得
-              const inputTimeElm = safeQuerySelector(row, '.input-text.pr-3.text-right');
-              if (!inputTimeElm) {
-                showMessage("入力時間の要素が見つかりません。", "warn");
+              // 稼働時間入力欄を探す（HTML構造に依存しない方法）
+              let operationTimeInput = null;
+
+              // 方法1: ボタンエリアの直前のセルから探す
+              const buttonArea = row.querySelector('[id^="getOperationTimeButton-"]')?.parentElement;
+              if (buttonArea?.previousElementSibling) {
+                operationTimeInput = buttonArea.previousElementSibling.querySelector('input[type="text"]');
+              }
+
+              // 方法2: 見つからなければ行内のすべてのinputから時間形式のものを探す
+              if (!operationTimeInput) {
+                const inputs = row.querySelectorAll('input[type="text"]');
+                operationTimeInput = Array.from(inputs).find(input => {
+                  const value = input.value || '';
+                  return value === '' || value.match(/^\d{1,2}:\d{2}$/);
+                });
+              }
+
+              if (!operationTimeInput) {
+                showMessage("稼働時間入力欄が見つかりません。", "warn");
                 return;
               }
-              
-              const inputTimeElmValue = inputTimeElm.value || '';
+
+              const inputTimeElmValue = operationTimeInput.value || '';
 
               // 時間を分に変換
               const minutes1 = timeToMinutes(operationTimeValue);       // 労働時間
@@ -1206,12 +1222,6 @@ function refreshDisplay() {
               const result = minutesToTime(differenceInMinutes);
 
               // 稼働時間にコピーする
-              const operationTimeInput = safeQuerySelector(row, '.w-20 #hs-dropdown-default');
-              if (!operationTimeInput) {
-                showMessage("稼働時間入力欄が見つかりません。", "warn");
-                return;
-              }
-              
               operationTimeInput.value = result;
               // 稼働時間の欄にフォーカスを当てて、その後外すことで労働時間を更新させる
               operationTimeInput.focus();
@@ -1266,14 +1276,30 @@ function refreshDisplay() {
 
           function offsetTime(row, offsetType, offsetMinutes) {
             try {
-              // 現在入力している時間を取得
-              const inputTimeElm = safeQuerySelector(row, '.input-text.pr-3.text-right');
-              if (!inputTimeElm) {
-                showMessage("入力時間の要素が見つかりません。", "warn");
+              // 稼働時間入力欄を探す（HTML構造に依存しない方法）
+              let operationTimeInput = null;
+
+              // 方法1: ボタンエリアの直前のセルから探す
+              const buttonArea = row.querySelector('[id^="getOperationTimeButton-"]')?.parentElement;
+              if (buttonArea?.previousElementSibling) {
+                operationTimeInput = buttonArea.previousElementSibling.querySelector('input[type="text"]');
+              }
+
+              // 方法2: 見つからなければ行内のすべてのinputから時間形式のものを探す
+              if (!operationTimeInput) {
+                const inputs = row.querySelectorAll('input[type="text"]');
+                operationTimeInput = Array.from(inputs).find(input => {
+                  const value = input.value || '';
+                  return value === '' || value.match(/^\d{1,2}:\d{2}$/);
+                });
+              }
+
+              if (!operationTimeInput) {
+                showMessage("稼働時間入力欄が見つかりません。", "warn");
                 return;
               }
-              
-              const inputTimeElmValue = inputTimeElm.value || '';
+
+              const inputTimeElmValue = operationTimeInput.value || '';
               const minutes = timeToMinutes(inputTimeElmValue);             // 現在入力している時間
 
               // 結果を時間と分に変換
@@ -1291,13 +1317,7 @@ function refreshDisplay() {
               // 結果を時間と分に変換
               const result = minutesToTime(differenceInMinutes);
 
-              // 稼働時間に加算する
-              const operationTimeInput = safeQuerySelector(row, '.w-20 #hs-dropdown-default');
-              if (!operationTimeInput) {
-                showMessage("稼働時間入力欄が見つかりません。", "warn");
-                return;
-              }
-              
+              // 稼働時間に設定
               operationTimeInput.value = result;
               // 稼働時間の欄にフォーカスを当てて、その後外すことで労働時間を更新させる
               operationTimeInput.focus();
@@ -1337,7 +1357,7 @@ function refreshDisplay() {
 
       pageTitles.forEach((title, i) => {
         const titleText = safeGetText(title).trim();
-        if (titleText.includes('稼働入力')) {
+        if (titleText.includes('���働入力')) {
           drawerOpen = true;
           // drawerのコンテナ要素を親要素から探す
           let parent = title.parentElement;
