@@ -87,8 +87,10 @@ function getColumnIndices(tableOrTbody) {
     headers.forEach((th, index) => {
       const text = safeGetText(th).trim();
       if (text.includes('日付') || text.match(/^\d+日/)) indices.date = index;
-      if (text.includes('勤務時間')) indices.workTime = index;
-      if (text.includes('稼働時間')) indices.operationTime = index;
+      // 「労働時間」または「勤務時間」を検索（HTML構造変更対応）
+      if (text.includes('労働時間') || text.includes('勤務時間')) indices.workTime = index;
+      // 「稼働合計」または「稼働時間」を検索（HTML構造変更対応）
+      if (text.includes('稼働合計') || text.includes('稼働時間')) indices.operationTime = index;
       if (text.includes('計画工数')) indices.plannedEffort = index;
     });
 
@@ -881,8 +883,8 @@ function refreshDisplay() {
 
       debugLog('稼働入力テーブル発見:', operationTimeTable);
 
-      // ボタン用のエリア（カラム：CA Utils）が既に存在するか確認
-      if (!document.getElementById('operationTimeButtonArea')) {
+      // ボタン用のエリア（カラム：CA Utils）が既に存在するか確認（テーブル内で検索）
+      if (!operationTimeTable.querySelector('#operationTimeButtonArea')) {
         try {
           // ヘッダー行を取得
           const headerRow = safeQuerySelector(operationTimeTable, 'thead tr');
@@ -986,16 +988,16 @@ function refreshDisplay() {
         }
       }
 
-      // プロジェクト名の行数分だけボタンを作成
-      const projectRows = document.querySelectorAll('.w-full .tr-normal');
+      // プロジェクト名の行数分だけボタンを作成（テーブル内で検索）
+      const projectRows = operationTimeTable.querySelectorAll('.tr-normal');
       debugLog('プロジェクト行数:', projectRows.length);
 
       if (!projectRows || projectRows.length === 0) return;
 
       projectRows.forEach((row, index) => {
         try {
-          // ボタンが既に存在するか確認
-          if (row.querySelector('#getOperationTimeButton-' + index)) {
+          // ボタンエリア（td）が既に存在するか確認
+          if (row.querySelector('[id^="ca-utils-button-area-"]')) {
             return;
           }
 
@@ -1051,6 +1053,7 @@ function refreshDisplay() {
 
           // ボタン表示用エリアを作成
           const buttonArea = document.createElement('td');
+          buttonArea.id = 'ca-utils-button-area-' + index; // 重複追加防止用ID
           buttonArea.className = operationTimeCell.className; // 既存セルと同じクラスを使用
           buttonArea.style.padding = "0pt";
           buttonArea.style.textAlign = "right";
