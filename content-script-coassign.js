@@ -27,13 +27,13 @@ const COLORS = {
 // 要素ID定数
 const ELEMENT_IDS = {
   MESSAGE_BOX: 'chrome-extension-message-box',
-  ERROR_ROW: 'CA-Utils_ERROR_ROW',
-  ERROR_CELL: 'CA-Utils_ERROR_CELL',
-  HRMOS_BUTTON: 'getHrmosWorkTimeButton',
-  OPERATION_TIME_BUTTON_AREA: 'operationTimeButtonArea',
-  CALENDAR_IFRAME: 'calendarIframe',
-  CALENDAR_BUTTON: 'calendarButton',
-  DIFF_WORKTIME_BUTTON: 'diffWorkTimeButton'
+  ERROR_ROW: 'caUtilsErrorRow',
+  ERROR_CELL: 'caUtilsErrorCell',
+  HRMOS_BUTTON: 'caUtilsHrmosButton',
+  OPERATION_TIME_BUTTON_AREA: 'caUtilsOperationButtonArea',
+  CALENDAR_IFRAME: 'caUtilsCalendarIframe',
+  CALENDAR_BUTTON: 'caUtilsCalendarButton',
+  DIFF_WORKTIME_BUTTON: 'caUtilsDiffButton'
 };
 
 // デバッグログ用のヘルパー関数
@@ -357,7 +357,7 @@ try {
 }
 
 // メッセージリスナー：デバッグモード変更通知を受け取る
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((request) => {
   if (request.action === 'updateDebugMode') {
     DEBUG_MODE = request.debugMode;
     console.log('[CA-Utils] デバッグモードが' + (DEBUG_MODE ? '有効' : '無効') + 'に変更されました');
@@ -607,7 +607,6 @@ function getOperationTime(response, getDiff = false) {
 
         let diffTime = {};
         // 本日までのCAの合計時間
-        // console.log(addWorkTimeCA);
         try {
           diffTime.sumTimeCA = sumTimes(addWorkTimeCA);
         } catch (e) {
@@ -680,7 +679,6 @@ function getOperationTime(response, getDiff = false) {
         if (getDiff) {
           try {
             const workTimeHRMOS = response.value.map(item => item.workTime);
-            // console.log(workTimeHRMOS);
             diffTime.sumTimeHRMOS = sumTimes(workTimeHRMOS);
             return diffTime;
           } catch (e) {
@@ -691,12 +689,12 @@ function getOperationTime(response, getDiff = false) {
 
         // 既にハイライトされた行の色を一旦リセット
         try {
-          document.querySelectorAll('#CA-Utils_ERROR_ROW').forEach(item => {
+          document.querySelectorAll('#caUtilsErrorRow').forEach(item => {
             item.style.backgroundColor = "";
             item.id = '';
           });
 
-          document.querySelectorAll('#CA-Utils_ERROR_CELL').forEach(item => {
+          document.querySelectorAll('#caUtilsErrorCell').forEach(item => {
             item.style.border = "";
             item.id = '';
           });
@@ -714,7 +712,7 @@ function getOperationTime(response, getDiff = false) {
               if (errorRow.element) {
                 errorRow.element.title = "[CA-Utils]HRMOS上で打刻時間が入力されていますが、Co-Assignの工数が入力されていません。"
                 errorRow.element.style.backgroundColor = '#fd7e00';
-                errorRow.element.id = 'CA-Utils_ERROR_ROW';
+                errorRow.element.id = 'caUtilsErrorRow';
               }
             } catch (e) {
               console.warn('エラー行ハイライトエラー:', e.message);
@@ -732,8 +730,8 @@ function getOperationTime(response, getDiff = false) {
                 if (workTimeCell && operationTimeCell) {
                   workTimeCell.style.border = "2px solid red";
                   operationTimeCell.style.border = "2px solid red";
-                  workTimeCell.id = "CA-Utils_ERROR_CELL";
-                  operationTimeCell.id = "CA-Utils_ERROR_CELL";
+                  workTimeCell.id = "caUtilsErrorCell";
+                  operationTimeCell.id = "caUtilsErrorCell";
                 }
               }
             } catch (e) {
@@ -787,7 +785,7 @@ function refreshDisplay() {
       // 方法1: .page-title要素で「稼働入力」を探す
       const pageTitles = document.querySelectorAll('.page-title');
 
-      pageTitles.forEach((title, i) => {
+      pageTitles.forEach((title) => {
         const titleText = safeGetText(title).trim();
         if (titleText.includes('稼働入力')) {
           drawerOpen = true;
@@ -811,7 +809,7 @@ function refreshDisplay() {
       if (!drawerOpen) {
         const dialogs = document.querySelectorAll('[role="dialog"]');
 
-        dialogs.forEach((dialog, i) => {
+        dialogs.forEach((dialog) => {
           const dialogText = safeGetText(dialog);
           if (dialogText.includes('稼働入力') || dialogText.includes('勤務時間')) {
             debugLog('方法2: role="dialog"で稼働入力画面を発見（', i, '番目）');
@@ -884,7 +882,7 @@ function refreshDisplay() {
       debugLog('稼働入力テーブル発見:', operationTimeTable);
 
       // ボタン用のエリア（カラム：CA Utils）が既に存在するか確認（テーブル内で検索）
-      if (!operationTimeTable.querySelector('#operationTimeButtonArea')) {
+      if (!operationTimeTable.querySelector('#caUtilsOperationButtonArea')) {
         try {
           // ヘッダー行を取得
           const headerRow = safeQuerySelector(operationTimeTable, 'thead tr');
@@ -971,7 +969,7 @@ function refreshDisplay() {
           // ボタンエリアを作成
           const buttonArea = document.createElement('th');
           buttonArea.className = operationTimeColumn.className; // 既存ヘッダーと同じクラスを使用
-          buttonArea.id = 'operationTimeButtonArea';
+          buttonArea.id = 'caUtilsOperationButtonArea';
           buttonArea.innerText = 'CA Utils';
           buttonArea.title = 'Co-Assign Utils：拡張ボタン';
 
@@ -997,7 +995,7 @@ function refreshDisplay() {
       projectRows.forEach((row, index) => {
         try {
           // ボタンエリア（td）が既に存在するか確認
-          if (row.querySelector('[id^="ca-utils-button-area-"]')) {
+          if (row.querySelector('[id^="caUtilsButtonArea"]')) {
             return;
           }
 
@@ -1007,7 +1005,7 @@ function refreshDisplay() {
           const rowCells = row.querySelectorAll('.td-normal');
 
           // 方法1: .hs-dropdown input を含むセルを探す（稼働時間）
-          rowCells.forEach((cell, cellIndex) => {
+          rowCells.forEach((cell) => {
             const input = cell.querySelector('.hs-dropdown input[type="text"]');
             if (input && !operationTimeCell) {
               operationTimeCell = cell;
@@ -1016,7 +1014,7 @@ function refreshDisplay() {
 
           // 方法2: input.input-text を含むセルを探す（稼働時間）
           if (!operationTimeCell) {
-            rowCells.forEach((cell, cellIndex) => {
+            rowCells.forEach((cell) => {
               const input = cell.querySelector('input.input-text[type="text"]');
               if (input && !operationTimeCell) {
                 operationTimeCell = cell;
@@ -1053,7 +1051,7 @@ function refreshDisplay() {
 
           // ボタン表示用エリアを作成
           const buttonArea = document.createElement('td');
-          buttonArea.id = 'ca-utils-button-area-' + index; // 重複追加防止用ID
+          buttonArea.id = 'caUtilsButtonArea' + index; // 重複追加防止用ID
           buttonArea.className = operationTimeCell.className; // 既存セルと同じクラスを使用
           buttonArea.style.padding = "0pt";
           buttonArea.style.textAlign = "right";
@@ -1353,9 +1351,9 @@ function refreshDisplay() {
       const pageTitles = document.querySelectorAll('.page-title');
       debugLog('.page-title要素の数:', pageTitles.length);
 
-      pageTitles.forEach((title, i) => {
+      pageTitles.forEach((title) => {
         const titleText = safeGetText(title).trim();
-        if (titleText.includes('���働入力')) {
+        if (titleText.includes('稼働入力')) {
           drawerOpen = true;
           // drawerのコンテナ要素を親要素から探す
           let parent = title.parentElement;
@@ -1378,7 +1376,7 @@ function refreshDisplay() {
       if (!drawerOpen) {
         const dialogs = document.querySelectorAll('[role="dialog"]');
 
-        dialogs.forEach((dialog, i) => {
+        dialogs.forEach((dialog) => {
           const dialogText = safeGetText(dialog);
           if (dialogText.includes('稼働入力') || dialogText.includes('勤務時間')) {
             debugLog('方法2: role="dialog"で稼働入力画面を発見（', i, '番目）');
@@ -1418,14 +1416,14 @@ function refreshDisplay() {
 
       // ボタンが既に存在するか確認（drawerコンテナ内で検索）
       const searchArea = drawerContainer || document;
-      if (searchArea.querySelector('#getHrmosWorkTimeButton')) {
+      if (searchArea.querySelector('#caUtilsHrmosButton')) {
         debugLog('HRMOSボタンは既に存在します');
         return;
       }
 
       // 勤務時間取得ボタンを作成
       const button = document.createElement('button');
-      button.id = 'getHrmosWorkTimeButton';
+      button.id = 'caUtilsHrmosButton';
       button.textContent = "HRMOSから勤務時間取得";
       button.style.margin = "5px 0px 0px 0px";
       setCSS(button);
@@ -1437,7 +1435,7 @@ function refreshDisplay() {
       // 方法1: 「勤務時間」ラベルを探して、その親要素に配置
       const labels = searchArea.querySelectorAll('.input-label, label, [class*="label"]');
       debugLog('ラベル要素の数:', labels.length);
-      labels.forEach((label, i) => {
+      labels.forEach((label) => {
         const labelText = safeGetText(label);
         if (labelText.includes('勤務時間')) {
 
@@ -1506,7 +1504,6 @@ function refreshDisplay() {
               }
 
               if (response && response.value) {
-                //console.log('response:', response);
                 // HRMOSが開かれていない場合
                 if (response.value === 'HRMOS not found' || response.value == '') {
                   showMessage('HRMOSの日次勤怠ページが見つかりませんでした。\n別タブでHRMOSの日次勤怠ページを開いてください。', 'warn');
@@ -1682,54 +1679,8 @@ function refreshDisplay() {
 
 function addButtonCalendar() {
   try {
-    // サイドメニューを探す - 稼働管理リンクを基準に
-    let menuDiv = null;
-
-    // 常に表示される「稼働管理」リンクを探す
-    const worksheetLink = document.querySelector('a[href*="/worksheet/"]');
-
-    if (worksheetLink) {
-      debugLog('稼働管理リンクを発見');
-
-      // 稼働管理リンクの親要素を遡り、メニューコンテナを探す
-      let parent = worksheetLink.parentElement;
-      let depth = 0;
-
-      while (parent && parent !== document.body && depth < 10) {
-        const directChildren = Array.from(parent.children);
-
-        // リンクまたはボタンを2つ以上含むdivを探す
-        const menuItemCount = directChildren.filter(child =>
-          child.tagName === 'A' ||
-          child.tagName === 'BUTTON' ||
-          (child.tagName === 'DIV' && (child.querySelector('a') || child.querySelector('button')))
-        ).length;
-
-        if (menuItemCount >= 2) {
-          menuDiv = parent;
-          debugLog('メニューコンテナを発見:', {
-            tagName: parent.tagName,
-            className: parent.className,
-            childCount: directChildren.length,
-            menuItemCount: menuItemCount
-          });
-          break;
-        }
-
-        parent = parent.parentElement;
-        depth++;
-      }
-    }
-
-    // フォールバック: IDで探す（古い構造）
-    if (!menuDiv) {
-      debugLog('稼働管理リンクからメニューが見つかりませんでした。IDで探します。');
-      const sidemenu = document.getElementById('sidemenu');
-      if (sidemenu) {
-        menuDiv = sidemenu.querySelector("div");
-        debugLog('IDベースのsidemenuを使用');
-      }
-    }
+    // サイドメニューを探す（共通関数を使用）
+    const menuDiv = findSideMenuContainer();
 
     if (!menuDiv) {
       console.warn('[CA-Utils] サイドメニューが見つかりません。カレンダーボタンの追加をスキップします。');
@@ -1739,7 +1690,7 @@ function addButtonCalendar() {
     debugLog('サイドメニューを発見しました');
 
     // 既にボタンが存在するかチェック（メニュー内で検索）
-    if (menuDiv.querySelector('#calendarButton')) {
+    if (menuDiv.querySelector('#caUtilsCalendarButton')) {
       debugLog('カレンダーボタンは既に存在します');
       return;
     }
@@ -1757,7 +1708,7 @@ function addButtonCalendar() {
 
     // ボタンを作成（aタグとして作成して既存のメニューと統一）
     const showButton = document.createElement('a');
-    showButton.id = 'calendarButton';
+    showButton.id = 'caUtilsCalendarButton';
     showButton.href = '#';
     showButton.title = "[CA-Utils] Google Calendarを表示します（ベータ機能）";
     showButton.className = buttonStyle;
@@ -1785,7 +1736,7 @@ function addButtonCalendar() {
     showButton.addEventListener('click', function (e) {
       e.preventDefault(); // ページ遷移を防ぐ
       try {
-        if (!document.getElementById('calendarIframe')) {
+        if (!document.getElementById('caUtilsCalendarIframe')) {
           chrome.storage.sync.get('userEmail', function (data) {
             try {
               if (data['userEmail']) {
@@ -1797,7 +1748,7 @@ function addButtonCalendar() {
                 iframe.src = "https://calendar.google.com/calendar/embed?height=450&wkst=1&ctz=Asia%2FTokyo&showPrint=0&mode=AGENDA&dates=" + today + "&showTz=0&showCalendars=0&showTitle=0&src=" + encodeURIComponent(userEmail) + "&color=%230083c6";
                 iframe.width = "450";
                 iframe.height = "300";
-                iframe.id = 'calendarIframe';
+                iframe.id = 'caUtilsCalendarIframe';
                 iframe.style.position = "fixed";
                 iframe.style.left = "0";
                 iframe.style.top = "auto";
@@ -1879,7 +1830,7 @@ function addButtonCalendar() {
                   iframe.style.top = newTop + 'px';
                 }
                 
-                function dragEnd(e) {
+                function dragEnd() {
                   isDragging = false;
                 }
                 
@@ -1894,7 +1845,7 @@ function addButtonCalendar() {
                 document.addEventListener("touchend", dragEnd);
                 
                 // iframeのIDを保存してクリーンアップ時に使用
-                iframe.dataset.cleanupId = 'calendarIframe';
+                iframe.dataset.cleanupId = 'caUtilsCalendarIframe';
               } else {
                 alert("メールアドレスが未設定です。\n拡張機能アイコンをクリックし、メールアドレスを入力して保存してください。");
               }
@@ -1903,11 +1854,11 @@ function addButtonCalendar() {
             }
           });
         } else {
-          if (document.getElementById('calendarIframe').style.display == 'none') {
-            document.getElementById('calendarIframe').style.display = 'block';
+          if (document.getElementById('caUtilsCalendarIframe').style.display == 'none') {
+            document.getElementById('caUtilsCalendarIframe').style.display = 'block';
             showButton.textContent = "Hide Calendar";
           } else {
-            document.getElementById('calendarIframe').style.display = 'none';
+            document.getElementById('caUtilsCalendarIframe').style.display = 'none';
             showButton.textContent = "[Beta]Show Calendar";
           }
         }
@@ -1923,48 +1874,8 @@ function addButtonCalendar() {
 // 稼働時間の差を表示するボタンを追加する処理
 function addButtonShowDiffWorkTime() {
   try {
-    // サイドメニューを探す - 稼働管理リンクを基準に
-    let menuDiv = null;
-
-    // 常に表示される「稼働管理」リンクを探す
-    const worksheetLink = document.querySelector('a[href*="/worksheet/"]');
-
-    if (worksheetLink) {
-      debugLog('稼働管理リンクを発見（差分ボタン用）');
-
-      // 稼働管理リンクの親要素を遡り、メニューコンテナを探す
-      let parent = worksheetLink.parentElement;
-      let depth = 0;
-
-      while (parent && parent !== document.body && depth < 10) {
-        const directChildren = Array.from(parent.children);
-
-        // リンクまたはボタンを2つ以上含むdivを探す
-        const menuItemCount = directChildren.filter(child =>
-          child.tagName === 'A' ||
-          child.tagName === 'BUTTON' ||
-          (child.tagName === 'DIV' && (child.querySelector('a') || child.querySelector('button')))
-        ).length;
-
-        if (menuItemCount >= 2) {
-          menuDiv = parent;
-          debugLog('メニューコンテナを発見（差分ボタン用）');
-          break;
-        }
-
-        parent = parent.parentElement;
-        depth++;
-      }
-    }
-
-    // フォールバック: IDで探す（古い構造）
-    if (!menuDiv) {
-      debugLog('稼働管理リンクからメニューが見つかりませんでした。IDで探します。');
-      const sidemenu = document.getElementById('sidemenu');
-      if (sidemenu) {
-        menuDiv = sidemenu.querySelector("div");
-      }
-    }
+    // サイドメニューを探す（共通関数を使用）
+    const menuDiv = findSideMenuContainer();
 
     if (!menuDiv) {
       console.warn('[CA-Utils] サイドメニューが見つかりません。勤務時間差分ボタンの追加をスキップします。');
@@ -1974,7 +1885,7 @@ function addButtonShowDiffWorkTime() {
     debugLog('サイドメニューを発見しました（差分ボタン用）');
 
     // 既にボタンが存在するかチェック（メニュー内で検索）
-    if (menuDiv.querySelector('#diffWorkTimeButton')) {
+    if (menuDiv.querySelector('#caUtilsDiffButton')) {
       debugLog('差分表示ボタンは既に存在します');
       return;
     }
@@ -1990,7 +1901,7 @@ function addButtonShowDiffWorkTime() {
 
     // ボタンを作成（aタグとして作成して既存のメニューと統一）
     const showButton = document.createElement('a');
-    showButton.id = 'diffWorkTimeButton';
+    showButton.id = 'caUtilsDiffButton';
     showButton.href = '#';
     showButton.title = "[CA-Utils] HRMOS⇔Co-assign間の勤務時間の差を表示します（ベータ機能）";
     showButton.className = buttonStyle;
