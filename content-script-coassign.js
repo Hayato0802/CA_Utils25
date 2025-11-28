@@ -1078,7 +1078,7 @@ function refreshDisplay() {
           
           // 「-」ボタンを作成
           const subtractTimeButton = document.createElement('button');
-          subtractTimeButton.id = 'addTimeButton-' + index;
+          subtractTimeButton.id = 'subtractTimeButton-' + index;
           subtractTimeButton.textContent = "-";
           subtractTimeButton.style.margin = "1px";
           subtractTimeButton.title = "[左クリック]-" + OFFSET_MINUTES + "分：[右クリック]-" + OFFSET_60_MINUTES + "分";
@@ -1344,11 +1344,6 @@ function refreshDisplay() {
     try {
       debugLog('addButtonHRMOS() が呼ばれました');
 
-      // ボタンが既に存在するか確認（既に存在する場合は処理をスキップ）
-      if (document.getElementById('getHrmosWorkTimeButton')) {
-        return;
-      }
-
       // まずdrawer（稼働入力画面）が開いているか確認
       // 複数の方法でdrawerの存在を確認（サイト更新に対応）
       let drawerOpen = false;
@@ -1421,6 +1416,13 @@ function refreshDisplay() {
         return;
       }
 
+      // ボタンが既に存在するか確認（drawerコンテナ内で検索）
+      const searchArea = drawerContainer || document;
+      if (searchArea.querySelector('#getHrmosWorkTimeButton')) {
+        debugLog('HRMOSボタンは既に存在します');
+        return;
+      }
+
       // 勤務時間取得ボタンを作成
       const button = document.createElement('button');
       button.id = 'getHrmosWorkTimeButton';
@@ -1430,9 +1432,6 @@ function refreshDisplay() {
 
       // 複数の方法で配置場所を探す（サイト更新に対応）
       let targetElement = null;
-
-      // drawerコンテナが見つかっている場合、その中で探す
-      const searchArea = drawerContainer || document;
       debugLog('検索範囲:', drawerContainer ? 'drawerコンテナ内' : 'document全体');
 
       // 方法1: 「勤務時間」ラベルを探して、その親要素に配置
@@ -1683,12 +1682,6 @@ function refreshDisplay() {
 
 function addButtonCalendar() {
   try {
-    // 既にボタンが存在するかチェック（IDベースで検索）
-    const existingButton = document.getElementById('calendarButton');
-    if (existingButton) {
-      return; // 既に存在する場合は処理をスキップ
-    }
-
     // サイドメニューを探す - 稼働管理リンクを基準に
     let menuDiv = null;
 
@@ -1744,6 +1737,12 @@ function addButtonCalendar() {
     }
 
     debugLog('サイドメニューを発見しました');
+
+    // 既にボタンが存在するかチェック（メニュー内で検索）
+    if (menuDiv.querySelector('#calendarButton')) {
+      debugLog('カレンダーボタンは既に存在します');
+      return;
+    }
 
     // 既存のメニュー項目のスタイルを確認
     const existingMenuItem = menuDiv.querySelector('a, button');
@@ -1924,12 +1923,6 @@ function addButtonCalendar() {
 // 稼働時間の差を表示するボタンを追加する処理
 function addButtonShowDiffWorkTime() {
   try {
-    // 既にボタンが存在するかチェック（IDベースで検索）
-    const existingButton = document.getElementById('diffWorkTimeButton');
-    if (existingButton) {
-      return; // 既に存在する場合は処理をスキップ
-    }
-
     // サイドメニューを探す - 稼働管理リンクを基準に
     let menuDiv = null;
 
@@ -1979,6 +1972,12 @@ function addButtonShowDiffWorkTime() {
     }
 
     debugLog('サイドメニューを発見しました（差分ボタン用）');
+
+    // 既にボタンが存在するかチェック（メニュー内で検索）
+    if (menuDiv.querySelector('#diffWorkTimeButton')) {
+      debugLog('差分表示ボタンは既に存在します');
+      return;
+    }
 
     // 既存のメニュー項目のスタイルを確認
     const existingMenuItem = menuDiv.querySelector('a, button');
