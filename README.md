@@ -233,6 +233,37 @@ console.error('[CA-Utils] エラーメッセージ'); // 常に出力
 2. `manifest.json` のバージョン番号を更新
 3. Chromeで拡張機能を再読み込み（chrome://extensions/）
 
+### 配布用ZIPの作成
+隠しフォルダ（`.git`, `.claude`など）を除外してZIPファイルを作成します。
+
+#### Windows (PowerShell)
+```powershell
+# プロジェクトフォルダで実行（デスクトップに出力）
+$desktop = [Environment]::GetFolderPath("Desktop")
+$zipPath = Join-Path $desktop "CoAssignUtils.zip"
+Compress-Archive -Path manifest.json,config.js,config.sample.js,background.js,popup.html,popup.js,utils.js,content-script-coassign.js,content-script-hrmos.js,images,README.md -DestinationPath $zipPath -Force
+Write-Host "作成完了: $zipPath"
+```
+
+#### Mac / Linux
+```bash
+# プロジェクトフォルダで実行（デスクトップに出力）
+zip -r ~/Desktop/CoAssignUtils.zip . -x ".*" -x "*/.*" -x "__MACOSX/*"
+```
+
+#### 含まれるファイル
+- `manifest.json` - 拡張機能の設定
+- `config.js` / `config.sample.js` - ユーザー設定
+- `*.js` - スクリプトファイル
+- `popup.html` - ポップアップUI
+- `images/` - アイコン画像
+- `README.md` - ドキュメント
+
+#### 除外されるファイル
+- `.git/` - Gitリポジトリ
+- `.claude/` - Claude Code設定
+- その他の隠しファイル・フォルダ
+
 ## 更新履歴
 
 ### v1.7.5 (最新)
