@@ -58,3 +58,47 @@ function findSideMenuContainer() {
   const sidemenu = document.getElementById('sidemenu');
   return sidemenu ? sidemenu.querySelector('div') : null;
 }
+
+// Drawer（稼働入力画面）のコンテナを検索する共通関数
+function findDrawerContainer() {
+  // 方法1: .page-title で「稼働入力」を探す
+  const pageTitles = document.querySelectorAll('.page-title');
+  for (const title of pageTitles) {
+    if (title.textContent && title.textContent.includes('稼働入力')) {
+      let parent = title.parentElement;
+      for (let i = 0; i < 15 && parent; i++) {
+        if (parent.querySelector('.p-5') ||
+            parent.classList.contains('drawer') ||
+            parent.getAttribute('role') === 'dialog') {
+          return parent;
+        }
+        parent = parent.parentElement;
+      }
+    }
+  }
+
+  // 方法2: role="dialog" で稼働入力を含むものを探す
+  const dialogs = document.querySelectorAll('[role="dialog"]');
+  for (const dialog of dialogs) {
+    if (dialog.textContent &&
+        (dialog.textContent.includes('稼働入力') || dialog.textContent.includes('勤務時間'))) {
+      return dialog;
+    }
+  }
+
+  // 方法3: 勤務時間ラベルから親を辿る
+  const labels = document.querySelectorAll('.input-label');
+  for (const label of labels) {
+    if (label.textContent && label.textContent.includes('勤務時間')) {
+      let parent = label.parentElement;
+      for (let i = 0; i < 15 && parent; i++) {
+        if (parent.querySelector('.p-5')) {
+          return parent;
+        }
+        parent = parent.parentElement;
+      }
+    }
+  }
+
+  return null;
+}

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Co-Assign Utils",
   "description": "Co-Assign Utils",
-  "version": "1.7.5",
+  "version": "1.8.0",
   "permissions": [
     "activeTab",
     "scripting",
@@ -11,6 +11,7 @@
     "tabs"
   ],
   "host_permissions": [
+    "https://*.co-assign.com/*",
     "https://p.ieyasu.co/*",
     "https://*.ieyasu.co/*",
     "https://api.github.com/*"

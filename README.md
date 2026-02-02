@@ -266,7 +266,13 @@ zip -r ~/Desktop/CoAssignUtils.zip . -x ".*" -x "*/.*" -x "__MACOSX/*"
 
 ## 更新履歴
 
-### v1.7.5 (最新)
+### v1.8.0 (最新)
+- 新機能: HRMOSとCo-Assignの労働時間が異なる行を黄色でハイライト表示
+- パフォーマンス改善: MutationObserverを2つから1つに統合（History APIベースのURL監視に変更）
+- リファクタリング: Drawer検出ロジックを共通関数（findDrawerContainer）に抽出
+- パフォーマンス改善: ドロワー閉じ時の処理をsetTimeoutからrequestAnimationFrameに変更
+
+### v1.7.5
 - リファクタリング: 共通関数の抽出（findSideMenuContainer）
 - ID命名規則をキャメルケース（caUtils*形式）に統一
 - 未使用コード・変数の削除

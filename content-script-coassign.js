@@ -29,6 +29,7 @@ const ELEMENT_IDS = {
   MESSAGE_BOX: 'chrome-extension-message-box',
   ERROR_ROW: 'caUtilsErrorRow',
   ERROR_CELL: 'caUtilsErrorCell',
+  WORKTIME_DIFF_ROW: 'caUtilsWorktimeDiffRow',
   HRMOS_BUTTON: 'caUtilsHrmosButton',
   OPERATION_TIME_BUTTON_AREA: 'caUtilsOperationButtonArea',
   CALENDAR_IFRAME: 'caUtilsCalendarIframe',
@@ -172,6 +173,9 @@ function cleanupDisplay() {
     // ハイライトされたセルの枠線をリセット
     resetElementStyles(`#${ELEMENT_IDS.ERROR_CELL}`, { border: '' });
 
+    // 労働時間差分行の色をリセット
+    resetElementStyles(`#${ELEMENT_IDS.WORKTIME_DIFF_ROW}`, { backgroundColor: '' });
+
     // 追加されたボタンとエリアを削除
     const elementsToRemove = [
       ELEMENT_IDS.HRMOS_BUTTON,
@@ -277,9 +281,9 @@ const observer = new MutationObserver((mutations) => {
 
           if (drawerRemoved) {
             debugLog("ドロワーが閉じられました、ハイライト処理を実行");
-            setTimeout(() => {
+            requestAnimationFrame(() => {
               highlightUnenteredOperationTime();
-            }, 100);
+            });
           }
         } catch (e) {
           console.warn('ドロワー削除検出エラー:', e.message);
@@ -318,13 +322,14 @@ try {
   console.error('初期処理エラー:', e.message);
 }
 
-// URL変更を監視してクリーンアップを実行
+// URL変更を監視してクリーンアップを実行（History APIベース）
 let currentUrl = window.location.href;
-const urlObserver = new MutationObserver(() => {
+
+function handleUrlChange() {
   try {
     if (window.location.href !== currentUrl) {
       currentUrl = window.location.href;
-      
+
       if (!isWorksheetPage()) {
         // worksheetページでなくなった場合はクリーンアップを実行
         cleanupDisplay();
@@ -344,14 +349,23 @@ const urlObserver = new MutationObserver(() => {
   } catch (e) {
     console.warn('URL変更監視エラー:', e.message);
   }
-});
+}
 
-// URL変更監視を開始
+// History APIをラップしてURL変更を検出
 try {
-  urlObserver.observe(document.body, {
-    childList: true,
-    subtree: true
-  });
+  window.addEventListener('popstate', handleUrlChange);
+
+  const originalPushState = history.pushState;
+  history.pushState = function(...args) {
+    originalPushState.apply(this, args);
+    handleUrlChange();
+  };
+
+  const originalReplaceState = history.replaceState;
+  history.replaceState = function(...args) {
+    originalReplaceState.apply(this, args);
+    handleUrlChange();
+  };
 } catch (e) {
   console.error('URL監視開始エラー:', e.message);
 }
@@ -581,6 +595,50 @@ function getOperationTime(response, getDiff = false) {
             }
           }).filter(item => item !== null);
 
+        // HRMOSとCo-Assignの労働時間が異なる行を検出
+        const workTimeDiffHRMOS = [];
+        try {
+          rows.forEach(item => {
+            const dateCell = safeArrayAccess(item.children, dateCol);
+            const workTimeCell = safeArrayAccess(item.children, workTimeCol);
+            if (!dateCell || !workTimeCell) return;
+
+            const dayText = safeGetText(dateCell);
+            const day = extractDay(dayText);
+            if (!day) return;
+
+            const caWorkTime = safeGetText(workTimeCell).trim();
+            if (caWorkTime === '-' || caWorkTime === '') return;
+
+            // HRMOSの対応する日付のデータを探す
+            const hrmosData = response.value.find(hItem => {
+              const hrmosDay = hItem.date ? hItem.date.split('-')[2] : null;
+              return hrmosDay === day;
+            });
+
+            if (hrmosData && hrmosData.workTime) {
+              const hrmosWorkTime = hrmosData.workTime.trim();
+              // 時間形式を正規化して比較（例: "8:00" と "08:00" を同一視）
+              const normalizeTime = (t) => {
+                if (!t || !t.includes(':')) return t;
+                const [h, m] = t.split(':');
+                return `${parseInt(h, 10)}:${m}`;
+              };
+              if (normalizeTime(caWorkTime) !== normalizeTime(hrmosWorkTime)) {
+                workTimeDiffHRMOS.push({
+                  day: day,
+                  element: item,
+                  caTime: caWorkTime,
+                  hrmosTime: hrmosWorkTime
+                });
+              }
+            }
+          });
+        } catch (e) {
+          console.warn('workTimeDiffHRMOS detection error:', e.message);
+        }
+        debugLog('workTimeDiffHRMOS（HRMOS労働時間差分）:', workTimeDiffHRMOS.length, '件');
+
         const addWorkTimeCARows = rows.filter(item => {
           try {
             const operationTimeCell = safeArrayAccess(item.children, operationTimeCol);
@@ -698,6 +756,11 @@ function getOperationTime(response, getDiff = false) {
             item.style.border = "";
             item.id = '';
           });
+
+          document.querySelectorAll('#caUtilsWorktimeDiffRow').forEach(item => {
+            item.style.backgroundColor = "";
+            item.id = '';
+          });
         } catch (e) {
           console.warn('ハイライトリセットエラー:', e.message);
         }
@@ -739,6 +802,21 @@ function getOperationTime(response, getDiff = false) {
             }
           }
         }
+        else if (workTimeDiffHRMOS.length != 0) {
+          showMessage("HRMOSと労働時間が異なる行があります（黄色部）。", "warn");
+
+          for (const diffRow of workTimeDiffHRMOS) {
+            try {
+              if (diffRow.element) {
+                diffRow.element.title = `[CA-Utils] HRMOSの実働時間とCo-Assignの労働時間が一致していません\nHRMOS: ${diffRow.hrmosTime} / Co-Assign: ${diffRow.caTime}`;
+                diffRow.element.style.backgroundColor = '#ffff00';
+                diffRow.element.id = 'caUtilsWorktimeDiffRow';
+              }
+            } catch (e) {
+              console.warn('労働時間差分ハイライトエラー:', e.message);
+            }
+          }
+        }
         else if (dataExistsCA.length > 0) {
           // 工数データが存在し、かつ問題がない場合のみ成功メッセージを表示
           showMessage("全ての工数が入力されています。その調子！");
@@ -777,49 +855,10 @@ function refreshDisplay() {
   // 工数入力のテーブルにボタンを追加する処理
   function addButtonOperationTime() {
     try {
-      // まずdrawer（稼働入力画面）が開いているか確認
-      // 複数の方法でdrawerの存在を確認
-      let drawerOpen = false;
-      let drawer = null;
+      // drawer（稼働入力画面）が開いているか確認（共通関数を使用）
+      const drawer = findDrawerContainer();
 
-      // 方法1: .page-title要素で「稼働入力」を探す
-      const pageTitles = document.querySelectorAll('.page-title');
-
-      pageTitles.forEach((title) => {
-        const titleText = safeGetText(title).trim();
-        if (titleText.includes('稼働入力')) {
-          drawerOpen = true;
-          // drawerのコンテナ要素を親要素から探す
-          let parent = title.parentElement;
-          let depth = 0;
-          while (parent && depth < 15) {
-            if (parent.querySelector('.p-5') || parent.classList.contains('drawer') ||
-                parent.getAttribute('role') === 'dialog') {
-              drawer = parent;
-              debugLog('drawerコンテナを発見（深さ:', depth, '）');
-              break;
-            }
-            parent = parent.parentElement;
-            depth++;
-          }
-        }
-      });
-
-      // 方法2: role="dialog"でdrawerを探す
-      if (!drawerOpen) {
-        const dialogs = document.querySelectorAll('[role="dialog"]');
-
-        dialogs.forEach((dialog) => {
-          const dialogText = safeGetText(dialog);
-          if (dialogText.includes('稼働入力') || dialogText.includes('勤務時間')) {
-            debugLog('方法2: role="dialog"で稼働入力画面を発見（', i, '番目）');
-            drawerOpen = true;
-            drawer = dialog;
-          }
-        });
-      }
-
-      if (!drawerOpen || !drawer) {
+      if (!drawer) {
         debugLog('drawer（稼働入力画面）が開いていません');
         return;
       }
@@ -1342,80 +1381,16 @@ function refreshDisplay() {
     try {
       debugLog('addButtonHRMOS() が呼ばれました');
 
-      // まずdrawer（稼働入力画面）が開いているか確認
-      // 複数の方法でdrawerの存在を確認（サイト更新に対応）
-      let drawerOpen = false;
-      let drawerContainer = null;
+      // drawer（稼働入力画面）が開いているか確認（共通関数を使用）
+      const drawerContainer = findDrawerContainer();
 
-      // 方法1: .page-title要素で「稼働入力」を探す
-      const pageTitles = document.querySelectorAll('.page-title');
-      debugLog('.page-title要素の数:', pageTitles.length);
-
-      pageTitles.forEach((title) => {
-        const titleText = safeGetText(title).trim();
-        if (titleText.includes('稼働入力')) {
-          drawerOpen = true;
-          // drawerのコンテナ要素を親要素から探す
-          let parent = title.parentElement;
-          let depth = 0;
-          while (parent && depth < 15) {
-            // drawerのコンテナは通常、大きなコンテナ要素
-            if (parent.querySelector('.p-5') || parent.classList.contains('drawer') ||
-                parent.getAttribute('role') === 'dialog') {
-              drawerContainer = parent;
-              debugLog('drawerコンテナを発見（深さ:', depth, '）');
-              break;
-            }
-            parent = parent.parentElement;
-            depth++;
-          }
-        }
-      });
-
-      // 方法2: role="dialog"でdrawerを探す（モーダル/drawer要素の標準属性）
-      if (!drawerOpen) {
-        const dialogs = document.querySelectorAll('[role="dialog"]');
-
-        dialogs.forEach((dialog) => {
-          const dialogText = safeGetText(dialog);
-          if (dialogText.includes('稼働入力') || dialogText.includes('勤務時間')) {
-            debugLog('方法2: role="dialog"で稼働入力画面を発見（', i, '番目）');
-            drawerOpen = true;
-            drawerContainer = dialog;
-          }
-        });
-      }
-
-      // 方法3: 「勤務時間」ラベルの存在で判定（最終手段）
-      if (!drawerOpen) {
-        const labels = document.querySelectorAll('.input-label');
-        labels.forEach(label => {
-          if (label.textContent.includes('勤務時間')) {
-            debugLog('方法3: 勤務時間ラベルで稼働入力画面を発見');
-            drawerOpen = true;
-            // ラベルから親要素を辿ってdrawerコンテナを探す
-            let parent = label.parentElement;
-            let depth = 0;
-            while (parent && depth < 15) {
-              if (parent.querySelector('.p-5')) {
-                drawerContainer = parent;
-                debugLog('drawerコンテナを発見（深さ:', depth, '）');
-                break;
-              }
-              parent = parent.parentElement;
-              depth++;
-            }
-          }
-        });
-      }
-
-      if (!drawerOpen) {
+      if (!drawerContainer) {
         debugLog('drawer（稼働入力画面）が開いていないため、HRMOSボタンは配置しません');
         return;
       }
 
       // ボタンが既に存在するか確認（drawerコンテナ内で検索）
-      const searchArea = drawerContainer || document;
+      const searchArea = drawerContainer;
       if (searchArea.querySelector('#caUtilsHrmosButton')) {
         debugLog('HRMOSボタンは既に存在します');
         return;
