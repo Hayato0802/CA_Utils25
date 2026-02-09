@@ -61,38 +61,37 @@
     // 取得したいDOM要素を選択
     let workTimes = [];
 
-    // 勤務表の行を取得 - より汎用的なセレクタを使用
+    // 勤務表の行を取得
     let rows = [];
 
-    // まず特定のクラス名で試す
-    rows = document.querySelectorAll('tr.noColor, tr.dayBlue, tr.dayRed, tr[class*="day"]');
+    // 方法1: 既知のクラス名で行を見つけ、親テーブルから全行を取得
+    const sampleRow = document.querySelector('tr.noColor, tr.dayBlue, tr.dayRed, tr[class*="day"]');
+    if (sampleRow) {
+      const parentTable = sampleRow.closest('table');
+      if (parentTable) {
+        // tbody内の全trを取得（ヘッダー行を除外）
+        const tbodyRows = parentTable.querySelectorAll('tbody > tr');
+        rows = tbodyRows.length > 0 ? Array.from(tbodyRows) : Array.from(parentTable.querySelectorAll('tr')).slice(1);
+        console.log('[CA-Utils] 親テーブルから全行を取得:', rows.length);
+      }
+    }
 
-    // 見つからない場合は、テーブル内の全行を取得
+    // 方法2: テーブルを検索して勤務表を探す
     if (rows.length === 0) {
       const tables = document.querySelectorAll('table');
       console.log('[CA-Utils] ページ内のテーブル数:', tables.length);
 
-      // 各テーブルの構造を確認
-      tables.forEach((table, index) => {
+      for (const table of tables) {
         const tableRows = table.querySelectorAll('tr');
-        console.log(`[CA-Utils] テーブル${index + 1}:`, {
-          className: table.className,
-          id: table.id,
-          rows: tableRows.length,
-          columns: tableRows[0] ? tableRows[0].querySelectorAll('td, th').length : 0
-        });
-
-        // 勤務表と思われるテーブルを探す（日付列がありそうなもの）
-        if (tableRows.length > 5 && rows.length === 0) {
-          const firstRow = tableRows[0];
-          const headerText = firstRow.textContent;
-          // ヘッダーに「日付」「出勤」「退勤」「勤務時間」などが含まれているか確認
+        if (tableRows.length > 5) {
+          const headerText = tableRows[0].textContent;
           if (headerText.includes('日') || headerText.includes('出') || headerText.includes('勤務')) {
-            rows = Array.from(tableRows).slice(1); // ヘッダー行を除外
-            console.log('[CA-Utils] 勤務表テーブルを発見:', index + 1, '行数:', rows.length);
+            rows = Array.from(tableRows).slice(1);
+            console.log('[CA-Utils] 勤務表テーブルを発見、行数:', rows.length);
+            break;
           }
         }
-      });
+      }
     }
 
     console.log('[CA-Utils] 取得した行数:', rows.length);
