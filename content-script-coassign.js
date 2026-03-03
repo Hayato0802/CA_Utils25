@@ -87,7 +87,7 @@ function getColumnIndices(tableOrTbody) {
 
     headers.forEach((th, index) => {
       const text = safeGetText(th).trim();
-      if (text.includes('日付') || text.match(/^\d+日/)) indices.date = index;
+      if (text.includes('日付') || text.match(/^\d+日/) || text.match(/^\d+\/\d+/)) indices.date = index;
       // 「労働時間」または「勤務時間」を検索（HTML構造変更対応）
       if (text.includes('労働時間') || text.includes('勤務時間')) indices.workTime = index;
       // 「稼働合計」または「稼働時間」を検索（HTML構造変更対応）
@@ -497,8 +497,8 @@ function getOperationTime(response, getDiff = false) {
                 const firstCellText = safeGetText(firstRow.children[0]).trim();
 
                 // 日付形式をチェック
-                // 「01日」「1日」「10月01日」などの形式に対応
-                const hasDateFormat = firstCellText.match(/\d{1,2}日/); // 「日」を含む
+                // 「01日」「1日」「10月01日」などの形式、または「02/01(日)」のようなMM/DD(曜日)形式に対応
+                const hasDateFormat = firstCellText.match(/\d{1,2}日/) || firstCellText.match(/\d{1,2}\/\d{1,2}/);
                 const hasWeekday = firstCellText.match(/[月火水木金土日]/); // 曜日が含まれる
 
                 if (hasDateFormat && hasWeekday) {
@@ -826,7 +826,8 @@ function getOperationTime(response, getDiff = false) {
         function extractDay(dateStr) {
           try {
             if (!dateStr) return null;
-            const match = dateStr.match(/(\d{2})日/);
+            // 「01日」形式、「02/01(日)」のようなMM/DD形式、「02(月)」のようなDD(曜日)形式に対応
+            const match = dateStr.match(/(\d{2})日/) || dateStr.match(/\d{1,2}\/(\d{2})/) || dateStr.match(/^(\d{2})\(/);
             return match ? match[1] : null;
           } catch (e) {
             console.warn('extractDay error:', e.message);

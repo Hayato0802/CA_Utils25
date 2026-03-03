@@ -266,7 +266,10 @@ zip -r ~/Desktop/CoAssignUtils.zip . -x ".*" -x "*/.*" -x "__MACOSX/*"
 
 ## 更新履歴
 
-### v1.8.0 (最新)
+### v1.8.1 (最新)
+- バグ修正: Co-Assignの日付形式変更（`MM/DD(曜日)`, `DD(曜日)`）に対応し、月次勤務表の検出・日付抽出が正しく動作するよう修正
+
+### v1.8.0
 - 新機能: HRMOSとCo-Assignの労働時間が異なる行を黄色でハイライト表示
 - パフォーマンス改善: MutationObserverを2つから1つに統合（History APIベースのURL監視に変更）
 - リファクタリング: Drawer検出ロジックを共通関数（findDrawerContainer）に抽出
