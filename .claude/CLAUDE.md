@@ -42,3 +42,20 @@
 - `content-script-coassign.js` - メインのコンテンツスクリプト
 - `background.js` - バックグラウンド処理
 - `popup.js` - ポップアップUI
+
+## 配布用ZIPの作成
+
+ユーザーから「zip化」等の指示があった場合、以下のPowerShellコマンドをプロジェクトフォルダで実行する。
+
+```powershell
+$desktop = [Environment]::GetFolderPath("Desktop")
+$zipPath = Join-Path $desktop "CoAssignUtils.zip"
+Compress-Archive -Path manifest.json,config.js,config.sample.js,background.js,popup.html,popup.js,utils.js,content-script-coassign.js,content-script-hrmos.js,images,README.md -DestinationPath $zipPath -Force
+Write-Host "作成完了: $zipPath"
+```
+
+### 含まれるファイル
+- `manifest.json`, `config.js`, `config.sample.js`, `*.js`, `popup.html`, `images/`, `README.md`
+
+### 除外されるファイル
+- `.git/`, `.claude/`, その他の隠しファイル・フォルダ
